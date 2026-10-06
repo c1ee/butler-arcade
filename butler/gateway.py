@@ -5,7 +5,8 @@ Facts from the live check (ticket 05) live here, not in callers:
 - `ReplyToEmail` quotes the replied-to email and takes To from it. On Butler's own email, `only_the_sender`
   addresses Butler itself; `every_recipient` keeps its To and merges `cc`, dropping duplicates (ticket 12).
 - `UpdateEvent` returns a string, so re-read with `get_event` when the event is needed.
-- Calendar notifications: only creating the event and adding an attendee email anyone.
+- Calendar notifications: only creating the event and adding an attendee email anyone. Deleting with `nobody`
+  still takes the event off every attendee's calendar, silently (ticket 13).
 - Gmail and Outlook paste the replied-to email in different formats (strip_quote).
 """
 

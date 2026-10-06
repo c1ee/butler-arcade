@@ -1,5 +1,6 @@
 """Every system email and the Calendar description, as templates (D8). Claude never writes these."""
 
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -8,6 +9,8 @@ from butler.config import TIMEZONE
 ZONE = ZoneInfo(TIMEZONE)
 EVENT_LENGTH = timedelta(hours=3)  # the calendar block; Butler stops at start + 1h (store.close_finished)
 RULE = "-" * 30
+# A signature Claude wrote itself, copying Butler's earlier emails: "— Butler", "-- Butler, on behalf of Chris".
+OWN_SIGNATURE = re.compile(r"\n\s*(?:[—–-]{1,2}\s*)?Butler(?:, on behalf of [^\n]*)?\s*$")
 
 
 def clock(at: datetime) -> str:
@@ -42,7 +45,7 @@ def title(dinner) -> str:
 def sign(body: str, dinner=None) -> str:
     """Butler's signature: plain to the Host, on the Host's behalf to anyone else."""
     signature = f"Butler, on behalf of {host_label(dinner)}" if dinner else "Butler"
-    return f"{body.rstrip()}\n\n— {signature}"
+    return f"{OWN_SIGNATURE.sub('', body.rstrip())}\n\n— {signature}"
 
 
 def _start(dinner) -> datetime:
@@ -153,6 +156,45 @@ def welcome(dinner, joiner_names: list[str], coming_names: list[str], headcount:
     """The Group thread post that adds Guests who said yes after it started (H3). Current facts, no catch-up."""
     lines = [f"Welcome, {_and(joiner_names)}! You're on the group thread now.", "",
              *_facts(dinner, coming_names, headcount)]
+    return sign("\n".join(lines), dinner)
+
+
+CALENDAR_UPDATED = "The calendar invite is updated."
+
+
+def change_lines(dinner, was_start: str | None, was_place: str | None, new_notes: list[str]) -> list[str]:
+    """The current time and place, each marked with what it was if it just changed, then any new shareable notes."""
+    start = _start(dinner)
+    lines = [f"When: {when(start)}", f"Where: {dinner['place']}"]
+    if was_start:
+        old = datetime.fromisoformat(was_start)
+        same_day = old.astimezone(ZONE).date() == start.astimezone(ZONE).date()
+        lines[0] += f" (was {clock(old) if same_day else when(old)})"
+    if was_place:
+        lines[1] += f" (was {was_place})"
+    if new_notes:
+        lines += ["", f"From {host_label(dinner)}:", *(f"- {text}" for text in new_notes)]
+    return lines
+
+
+def change_attachment(lines: list[str]) -> str:
+    """The update attached below Butler's reply when the Host made the Change in the Group thread."""
+    return "\n".join([*lines, "", CALENDAR_UPDATED])
+
+
+def change_notice(dinner, lines: list[str], audience: str) -> str:
+    """A Change, once to each audience (H4): the Group thread, or privately to an Invited or Attending Guest outside
+    it. Invited Guests aren't on the calendar yet, so they're asked to answer instead."""
+    host = host_label(dinner)
+    head = "Hi all," if audience == "group" else "Hi,"
+    tail = "Can you make it? Just reply to this email with yes or no." if audience == "invited" else CALENDAR_UPDATED
+    return sign("\n".join([head, "", f"An update on {host}'s dinner:", "", *lines, "", tail]), dinner)
+
+
+def cancel_notice(dinner, group: bool) -> str:
+    """H8: once to the Group thread and once to each Invited or Attending Guest outside it. No reason."""
+    lines = ["Hi all," if group else "Hi,", "",
+             f"{host_label(dinner)} has canceled the dinner on {when(_start(dinner))}. Sorry for the change of plans!"]
     return sign("\n".join(lines), dinner)
 
 

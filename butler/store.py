@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS dinner (
     group_threshold INTEGER NOT NULL DEFAULT 2,
     calendar_event_id TEXT,
     host_thread_id TEXT,
-    group_thread_id TEXT
+    group_thread_id TEXT,
+    cancel_asked_in TEXT  -- the Host email in which Butler asked them to confirm canceling (D9)
 );
 CREATE TABLE IF NOT EXISTS guest (
     id INTEGER PRIMARY KEY,
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS host_note (
 CREATE TABLE IF NOT EXISTS change (
     id INTEGER PRIMARY KEY,
     dinner_id INTEGER NOT NULL REFERENCES dinner(id),
-    kind TEXT NOT NULL,  -- approve / rsvp / time / place / note / group_start / group_join / cancel
+    kind TEXT NOT NULL,  -- approve / rsvp / group_start / group_join / change / cancel
     payload TEXT NOT NULL DEFAULT '{}'
 );
 -- Every email and calendar write Butler makes, queued in the same transaction as the state it reflects (D5).
@@ -252,6 +253,10 @@ class Store:
             "SELECT * FROM host_note WHERE dinner_id = ? AND deleted = 0 ORDER BY id", (dinner_id,)
         ).fetchall()
 
+    def set_note_shareable(self, dinner_id: int, note_id: int, shareable: bool) -> None:
+        self.db.execute("UPDATE host_note SET shareable = ? WHERE dinner_id = ? AND id = ?",
+                        (int(shareable), dinner_id, note_id))
+
     def delete_note(self, dinner_id: int, note_id: int) -> bool:
         cursor = self.db.execute(
             "UPDATE host_note SET deleted = 1 WHERE dinner_id = ? AND id = ? AND deleted = 0", (dinner_id, note_id)
@@ -264,6 +269,11 @@ class Store:
         return self.db.execute(
             "INSERT INTO change (dinner_id, kind, payload) VALUES (?, ?, ?)", (dinner_id, kind, json.dumps(payload or {}))
         ).lastrowid
+
+    def changes(self, dinner_id: int, kind: str) -> list[dict]:
+        rows = self.db.execute("SELECT payload FROM change WHERE dinner_id = ? AND kind = ? ORDER BY id",
+                               (dinner_id, kind)).fetchall()
+        return [json.loads(row["payload"]) for row in rows]
 
     def queue(self, channel: str, recipient: str, payload: dict, change_id: int | None = None,
               message_id: str | None = None) -> None:

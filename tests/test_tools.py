@@ -8,7 +8,7 @@ from butler.tools import Ctx, ToolError, toolset
 from tests.fakes import HOST, NOW, SETTINGS
 
 HOST_THREAD = ["get_event", "get_group_thread", "get_guest_details", "change_event", "add_note", "invite_guest",
-               "update_note"]
+               "update_note", "ask_cancel_confirmation"]
 
 
 @pytest.mark.parametrize(

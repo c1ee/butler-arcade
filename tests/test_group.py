@@ -201,7 +201,8 @@ def test_the_host_in_the_group_gets_public_reads_only(setup):
 
     (reply,) = gateway.sent
     assert (reply["to"], reply["cc"]) == (HOST, [A, B])
-    assert [t["name"] for t in claude.requests[1]["tools"]] == ["get_event", "get_group_thread"]
+    assert [t["name"] for t in claude.requests[1]["tools"]] == ["get_event", "get_group_thread", "change_event",
+                                                               "add_note", "invite_guest"]
     assert_no_secrets(claude, gateway)
 
 

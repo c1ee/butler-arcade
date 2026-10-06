@@ -21,7 +21,7 @@ from butler.store import LIVE, Store, headcount, status
 SETUP = ("draft", "draft_shown")  # phases before the Host approves
 
 HOST_THREAD = ["get_event", "get_group_thread", "get_guest_details", "change_event", "add_note", "invite_guest",
-               "update_note"]
+               "update_note", "ask_cancel_confirmation"]
 HOST_IN_GROUP = ["get_event", "get_group_thread", "change_event", "add_note", "invite_guest"]
 GUEST_IN_GROUP = ["get_event", "get_group_thread", "get_my_rsvp", "record_rsvp"]
 GUEST_THREAD = ["get_event", "get_my_rsvp", "record_rsvp"]
@@ -34,6 +34,7 @@ def toolset(role: str, channel: str, phase: str, attending: bool = False) -> lis
             return ["update_draft"]
         if phase == "draft_shown":  # send_invites only once the complete draft was shown (D9)
             return ["update_draft", "send_invites"]
+        # cancel_dinner only in the Host's next email after Butler asked them to confirm (D9)
         return HOST_THREAD + (["cancel_dinner"] if phase == "confirming_cancel" else [])
     if phase in SETUP:
         return []
@@ -56,6 +57,7 @@ class Ctx:
     sender: str
     now: datetime
     gateway: Gateway | None = None  # get_group_thread reads Gmail
+    message_id: str | None = None  # the email being answered
 
 
 class ToolError(Exception):
@@ -124,7 +126,7 @@ def draft_state(store: Store, dinner_id: int) -> dict:
         "start": f"{start.astimezone(render.ZONE):%Y-%m-%dT%H:%M} ({render.when(start)})" if start else None,
         "place": dinner["place"],
         "guests": guests,
-        "notes": [{"id": n["id"], "text": n["text"], "shareable": bool(n["shareable"])} for n in store.notes(dinner_id)],
+        "notes": host_notes(store, dinner_id),
         "group_threshold": dinner["group_threshold"],
         "missing": missing(dinner, guests),
         "shown_to_host": dinner["status"] == "draft_shown",
@@ -146,6 +148,21 @@ def show_draft(store: Store, dinner_id: int) -> str | None:
     return render.draft_preview(dinner, store.notes(dinner_id), guests)
 
 
+def local_start(start: datetime, now: datetime) -> datetime:
+    """A start time Claude passed, in Los Angeles (naive means local), refused if it's already past."""
+    start = (start if start.tzinfo else start.replace(tzinfo=render.ZONE)).astimezone(render.ZONE)
+    if start <= now:
+        raise ToolError(f"{render.when(start)} is in the past (today is {render.when(now)}).")
+    return start
+
+
+def check_guest_address(address: str, dinner, settings: Settings) -> None:
+    if not EMAIL.match(address):
+        raise ToolError(f"{address!r} isn't an email address. Ask the Host for it.")
+    if address in (dinner["host_email"], settings.butler_email):
+        raise ToolError(f"{address} is the {'Host' if address == dinner['host_email'] else 'Butler'}, not a Guest.")
+
+
 def update_draft(ctx: Ctx, args: UpdateDraft) -> dict:
     store, dinner_id = ctx.store, ctx.dinner_id
     dinner = store.dinner(dinner_id)
@@ -154,9 +171,7 @@ def update_draft(ctx: Ctx, args: UpdateDraft) -> dict:
 
     fields = {}
     if args.start is not None:
-        start = (args.start if args.start.tzinfo else args.start.replace(tzinfo=render.ZONE)).astimezone(render.ZONE)
-        if start <= ctx.now:
-            raise ToolError(f"{render.when(start)} is in the past (today is {render.when(ctx.now)}).")
+        start = local_start(args.start, ctx.now)
         if start.isoformat() != dinner["start_at"]:
             fields["start_at"] = start.isoformat()
     if args.place and args.place.strip() != dinner["place"]:
@@ -168,10 +183,7 @@ def update_draft(ctx: Ctx, args: UpdateDraft) -> dict:
     add = list(dict.fromkeys(address.strip().lower() for address in args.add_guests))
     remove = {address.strip().lower() for address in args.remove_guests}
     for address in add:
-        if not EMAIL.match(address):
-            raise ToolError(f"{address!r} isn't an email address. Ask the Host for it.")
-        if address in (dinner["host_email"], ctx.settings.butler_email):
-            raise ToolError(f"{address} is the {'Host' if address == dinner['host_email'] else 'Butler'}, not a Guest.")
+        check_guest_address(address, dinner, ctx.settings)
     if unknown := remove - current:
         raise ToolError(f"Not on the draft: {', '.join(sorted(unknown))}.")
     note_ids = {note["id"] for note in store.notes(dinner_id)}
@@ -320,6 +332,169 @@ def get_group_thread(ctx: Ctx, args: NoArgs) -> dict:
                       for email in posts[-GROUP_POSTS:]]}
 
 
+# The Host after approval (H4, H5, H6, H8). Tools only write state; a Change goes out once, from the net change
+# after the loop (effects.host_changes), so "move to 8 and tell everyone to bring wine" is one update.
+
+UPDATE = "Everyone invited or coming gets one update with this after your reply. Don't write it yourself."
+
+
+def guest_details(store: Store, dinner_id: int) -> list[dict]:
+    """Every Guest's answer and details (private scope): the Host thread only."""
+    return [
+        {
+            "email": guest["email"],
+            "name": guest["name"],
+            "status": status(guest),
+            "plus_ones": guest["plus_ones"],
+            "dietary_needs": guest["dietary_needs"],
+            "note_for_host": guest["guest_note"],
+            "in_group_thread": bool(guest["group_joined_at"]),
+        }
+        for guest in store.guests(dinner_id)
+    ]
+
+
+def host_notes(store: Store, dinner_id: int) -> list[dict]:
+    return [{"id": n["id"], "text": n["text"], "shareable": bool(n["shareable"])} for n in store.notes(dinner_id)]
+
+
+def host_facts(store: Store, dinner_id: int) -> dict:
+    """The whole Dinner as the Host sees it in the Host thread, which only they read."""
+    dinner, guests = store.dinner(dinner_id), store.guests(dinner_id)
+    started = len(store.members(dinner_id)) > 1
+    return {
+        "dinner": dinner["title"],
+        "when": render.when(datetime.fromisoformat(dinner["start_at"])),
+        "place": dinner["place"],
+        "headcount": headcount(guests),
+        "group_thread": "started" if started else f"not started: starts once {dinner['group_threshold']} Guests say yes",
+        "host_notes": host_notes(store, dinner_id),
+        "guests": guest_details(store, dinner_id),
+        "changes_since_invites": change_log(store, dinner_id),
+    }
+
+
+def change_log(store: Store, dinner_id: int) -> list[str]:
+    """What the Host changed after approval and where, oldest first. A Change made in the Group thread isn't in the
+    Host thread's emails, so without this the Host thread reads as if the dinner never moved."""
+    log = []
+    for change in store.changes(dinner_id, "change"):
+        parts = []
+        if change["was_start"]:
+            was, now = (datetime.fromisoformat(change[key]) for key in ("was_start", "start"))
+            parts.append(f"time {render.short_when(was)} → {render.short_when(now)}")
+        if change["was_place"]:
+            parts.append(f"place {change['was_place']} → {change['place']}")
+        parts += [f"shareable note: {text}" for text in change["new_notes"]]
+        parts += [f"invited {email}" for email in change["invited"]]
+        if parts:
+            log.append(f"{'; '.join(parts)} (in the {change['via']})")
+    return log
+
+
+def get_guest_details(ctx: Ctx, args: NoArgs) -> dict:
+    return {"guests": guest_details(ctx.store, ctx.dinner_id), "headcount": headcount(ctx.store.guests(ctx.dinner_id))}
+
+
+class ChangeEvent(BaseModel):
+    start: datetime | None = Field(
+        None, description="The new start, local time (America/Los_Angeles), ISO 8601, e.g. 2026-10-24T20:00. "
+        "Omit if the time isn't changing."
+    )
+    place: str | None = Field(
+        None, description="The new address or venue exactly as Guests should read it. Omit if the place isn't changing."
+    )
+
+
+def change_event(ctx: Ctx, args: ChangeEvent) -> dict:
+    store, dinner_id = ctx.store, ctx.dinner_id
+    dinner = store.dinner(dinner_id)
+    if args.start is None and not (args.place or "").strip():
+        raise ToolError("Pass the new start, the new place, or both.")
+    fields = {}
+    if args.start is not None:
+        start = local_start(args.start, ctx.now)
+        if start.isoformat() != dinner["start_at"]:
+            fields["start_at"] = start.isoformat()
+    if args.place and args.place.strip() != dinner["place"]:
+        fields["place"] = args.place.strip()
+    if fields:
+        store.update_dinner(dinner_id, **fields)
+    dinner = store.dinner(dinner_id)
+    result = {"when": render.when(datetime.fromisoformat(dinner["start_at"])), "place": dinner["place"]}
+    return result | ({"update": UPDATE} if fields else {"unchanged": "That's what it already was."})
+
+
+def add_note(ctx: Ctx, args: NoteIn) -> dict:
+    text = args.text.strip()
+    saved = {"id": ctx.store.add_note(ctx.dinner_id, text, args.shareable), "text": text, "shareable": args.shareable}
+    if args.shareable:
+        return {"saved": saved, "seen_by": f"Guests: it goes on the calendar invite. {UPDATE}"}
+    return {"saved": saved, "seen_by": "Only the Host."}
+
+
+class UpdateNote(BaseModel):
+    note_id: int = Field(description="The Host note's id")
+    shareable: bool | None = Field(
+        None, description="True: Guests may see it (on the calendar invite). False: only the Host. Omit when deleting."
+    )
+    delete: bool = Field(False, description="True to forget the note")
+
+
+def update_note(ctx: Ctx, args: UpdateNote) -> dict:
+    store, dinner_id = ctx.store, ctx.dinner_id
+    if args.note_id not in {note["id"] for note in store.notes(dinner_id)}:
+        raise ToolError(f"No Host note with id {args.note_id}.")
+    if args.delete:
+        store.delete_note(dinner_id, args.note_id)
+    elif args.shareable is None:
+        raise ToolError("Pass shareable, or delete.")
+    else:
+        store.set_note_shareable(dinner_id, args.note_id, args.shareable)
+    return {"host_notes": host_notes(store, dinner_id),
+            "seen_by": "The calendar invite shows the shareable ones. Nobody is emailed about this."}
+
+
+class InviteGuest(BaseModel):
+    email: str = Field(description="The new Guest's email address, exactly as the Host wrote it")
+
+
+def invite_guest(ctx: Ctx, args: InviteGuest) -> dict:
+    store, dinner_id = ctx.store, ctx.dinner_id
+    address = args.email.strip().lower()
+    check_guest_address(address, store.dinner(dinner_id), ctx.settings)
+    if store.guest(dinner_id, address):
+        raise ToolError(f"{address} is already on the guest list.")
+    store.add_guest(dinner_id, address)
+    return {"invited": address, "invite": "After your reply, they get their own private invite with the current details."}
+
+
+def ask_cancel_confirmation(ctx: Ctx, args: NoArgs) -> dict:
+    """Opens the window: cancel_dinner exists only in the Host's next email in the Host thread (D9)."""
+    ctx.store.update_dinner(ctx.dinner_id, status="confirming_cancel", cancel_asked_in=ctx.message_id)
+    members, outside = effects.audience(ctx.store, ctx.dinner_id)
+    return {
+        "canceled": False,
+        "would_tell": {"group_thread": members or None, "privately": [guest["email"] for guest in outside]},
+        "next": "Ask the Host to confirm. Only a clear yes in their next email cancels.",
+    }
+
+
+def cancel_dinner(ctx: Ctx, args: NoArgs) -> dict:
+    if ctx.store.dinner(ctx.dinner_id)["status"] != "confirming_cancel":
+        raise ToolError("Ask the Host to confirm first.")
+    told = effects.cancel(ctx.store, ctx.dinner_id)
+    return {"canceled": True, "told": told, "calendar": "The event is deleted; Google emails nobody."}
+
+
+def lapse_cancel(store: Store, dinner_id: int, message_id: str) -> None:
+    """After any Host-thread email: if Butler asked to confirm canceling in an earlier email, this one was the
+    Host's chance to confirm. It didn't cancel, so the question lapses (D9)."""
+    dinner = store.dinner(dinner_id)
+    if dinner["status"] == "confirming_cancel" and dinner["cancel_asked_in"] != message_id:
+        store.update_dinner(dinner_id, status="active", cancel_asked_in=None)
+
+
 TOOLS = {
     tool.name: tool
     for tool in [
@@ -357,6 +532,51 @@ TOOLS = {
             "The latest posts in the group email thread among the Host and the Guests who said yes.",
             NoArgs,
             get_group_thread,
+        ),
+        Tool(
+            "get_guest_details",
+            "Every Guest's answer, Plus-ones, Dietary needs, and note for the Host. Private: only for the Host.",
+            NoArgs,
+            get_guest_details,
+        ),
+        Tool(
+            "change_event",
+            "Change the dinner's start time or place. Updates the calendar; everyone invited or coming is told once.",
+            ChangeEvent,
+            change_event,
+        ),
+        Tool(
+            "add_note",
+            "Save a fact about the dinner from the Host (what to bring, parking, ...). A shareable note goes on the "
+            "calendar invite and everyone invited or coming is told once; a private one only the Host sees.",
+            NoteIn,
+            add_note,
+        ),
+        Tool(
+            "update_note",
+            "Make a Host note shareable or private, or delete it. Updates the calendar invite; nobody is emailed.",
+            UpdateNote,
+            update_note,
+        ),
+        Tool(
+            "invite_guest",
+            "Invite one more Guest by email address. They get their own private invite.",
+            InviteGuest,
+            invite_guest,
+        ),
+        Tool(
+            "ask_cancel_confirmation",
+            "The Host asked to cancel the dinner. Cancels nothing: it lets them confirm in their next email. Returns "
+            "who would be told; then ask them to confirm.",
+            NoArgs,
+            ask_cancel_confirmation,
+        ),
+        Tool(
+            "cancel_dinner",
+            "Cancel the dinner, only when the Host clearly confirmed after you asked. Everyone invited or coming is "
+            "told once and the calendar event is deleted. Can't be undone.",
+            NoArgs,
+            cancel_dinner,
         ),
     ]
 }

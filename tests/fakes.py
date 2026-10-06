@@ -84,6 +84,10 @@ class FakeGateway:
             self.events[event_id]["attendees"].append(email)
         self.invited.append((event_id, email))
 
+    def delete_event(self, event_id):
+        """Silently, like `send_updates="nobody"`: nobody is emailed."""
+        del self.events[event_id]
+
     def remove_attendee(self, event_id, email):
         event = self.events[event_id]
         event["attendees"] = [attendee for attendee in event["attendees"] if attendee != email]

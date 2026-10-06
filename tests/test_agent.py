@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from butler import agent, tools
+from butler import agent, render, tools
 from butler.agent import MAX_STEPS, strip_quote
 from butler.store import Store
 from butler.tools import Ctx
@@ -82,3 +82,13 @@ def test_no_tools_means_no_tools_param(ctx):
     claude = ScriptedClaude([text("hello")])
     agent.run(claude, "m", "sys", "hi", [], ctx, "m1")
     assert "tools" not in claude.requests[0]
+
+
+@pytest.mark.parametrize("body", ["Done!\n\n— Butler", "Done!\n-- Butler", "Done!\n\nButler, on behalf of Chris", "Done!"])
+def test_sign_replaces_a_signature_claude_wrote_itself(body):
+    """Live, run hw1: Claude copied the signature from Butler's earlier emails, so the Host got two."""
+    assert render.sign(body) == "Done!\n\n— Butler"
+
+
+def test_sign_keeps_butler_mentioned_mid_text():
+    assert render.sign("Ask Butler anything.\nThanks") == "Ask Butler anything.\nThanks\n\n— Butler"

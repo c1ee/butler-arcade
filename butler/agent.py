@@ -106,24 +106,61 @@ email you privately, without repeating them.
 - If {host} wants to cancel, ask them to confirm with you privately. Nothing is canceled from here.
 - One to three sentences. Don't recap details nobody asked about."""
 
+GROUP_HOST = """- {host} can change the dinner from here: a new time or place with change_event, one more Guest with \
+invite_guest, a fact everyone should know (what to bring, parking) with add_note as shareable. The update with \
+the details is attached below your reply automatically (it also says the calendar is updated), and Guests \
+outside this thread get it privately: just confirm in a few words, without repeating any of it."""
+
+
+HOST = """This is the Host thread, your private email thread with {host}, the Host. The invites went out: the \
+dinner is on the calendar and Guests are answering.
+
+- The details below are the dinner as it is now, including changes {host} made in the group thread. Never \
+change anything this email doesn't ask for, even if earlier emails in this thread say otherwise.
+- Questions: answer from the details below. Only {host} reads this thread, so every Guest's answer, Dietary \
+needs, and notes are fine to share here.
+- Changes: a new time or place → change_event; one more Guest → invite_guest; a new fact about the dinner → \
+add_note. After your reply, everyone invited or coming gets one update covering all of this email's changes (in \
+the group thread if it started, privately otherwise), and new Guests get an invite with the current details. \
+Don't write that update; just confirm what changed.
+- Host notes are private unless {host} clearly says Guests may know them. Whenever you save or change a note, \
+say whether Guests will see it. {host} can make a note shareable or private, or drop it, with update_note: that \
+only updates the calendar invite, nobody is emailed.
+- Removing a Guest isn't possible yet: say you can't remove guests yet and suggest {host} lets them know directly.
+- Canceling: when {host} asks to cancel, call ask_cancel_confirmation, then ask them to confirm and say who will \
+be told. Nothing is canceled until they confirm in their next email.
+- Keep it short: answer the question or confirm what changed. Don't recap the dinner or the guest list unless \
+asked."""
+
+CANCEL_ASKED = """In your last email you asked {host} to confirm canceling the dinner. If this email clearly \
+confirms, call cancel_dinner. If it doesn't, don't cancel: the question lapses, and if they want to cancel later, \
+ask again with ask_cancel_confirmation."""
+
 
 def answer(claude, model: str, ctx: Ctx, turn: Turn) -> str:
     store, dinner_id = ctx.store, ctx.dinner_id
     dinner = store.dinner(dinner_id)
-    phase = dinner["status"]
+    phase, host = dinner["status"], render.host_label(dinner)
     if phase in tools.SETUP and turn.channel == "host_thread":
-        facts = f"The draft right now:\n{json.dumps(tools.draft_state(store, dinner_id), indent=1)}"
+        facts = f"The draft right now:\n{_json(tools.draft_state(store, dinner_id))}"
         system = f"{BUTLER}\n\n{SETUP}"
+    elif phase in LIVE and turn.channel == "host_thread":
+        facts = f"The dinner and every Guest's answer:\n{_json(tools.host_facts(store, dinner_id))}"
+        if phase == "confirming_cancel":
+            facts += f"\n\n{CANCEL_ASKED.format(host=host)}"
+        system = f"{BUTLER}\n\n{HOST.format(host=host)}"
     elif phase in LIVE and turn.role == "guest" and turn.channel == "guest_thread":
-        facts = (f"The dinner (everything Guests may know):\n{json.dumps(tools.public_facts(store, dinner_id), indent=1)}"
-                 f"\n\nTheir RSVP so far:\n{json.dumps(tools.own_rsvp(store, dinner_id, ctx.sender), indent=1)}")
-        system = f"{BUTLER}\n\n{GUEST.format(host=render.host_label(dinner))}"
+        facts = (f"The dinner (everything Guests may know):\n{_json(tools.public_facts(store, dinner_id))}"
+                 f"\n\nTheir RSVP so far:\n{_json(tools.own_rsvp(store, dinner_id, ctx.sender))}")
+        system = f"{BUTLER}\n\n{GUEST.format(host=host)}"
     elif phase in LIVE and turn.channel == "group_thread":
-        facts = f"The dinner (everything Guests may know):\n{json.dumps(tools.public_facts(store, dinner_id), indent=1)}"
+        facts = f"The dinner (everything Guests may know):\n{_json(tools.public_facts(store, dinner_id))}"
         if turn.role == "guest":
             rsvp = tools.own_rsvp(store, dinner_id, ctx.sender, group=True)
-            facts += f"\n\nThe sender's RSVP so far:\n{json.dumps(rsvp, indent=1)}"
-        system = f"{BUTLER}\n\n{GROUP.format(host=render.host_label(dinner))}"
+            facts += f"\n\nThe sender's RSVP so far:\n{_json(rsvp)}"
+        system = f"{BUTLER}\n\n{GROUP.format(host=host)}"
+        if turn.role == "host":
+            system += f"\n{GROUP_HOST.format(host=host)}"
     else:
         raise NotImplementedError(f"no tool loop yet for {turn.role} in {turn.channel} ({phase})")
     guest = store.guest(dinner_id, ctx.sender)
@@ -194,6 +231,10 @@ def run(claude, model: str, system: str, content: str, toolset: list[tools.Tool]
                             "is_error": is_error})
         messages.append({"role": "user", "content": results})
     raise AssertionError("unreachable: the last step has no tools")
+
+
+def _json(value) -> str:
+    return json.dumps(value, indent=1, ensure_ascii=False)
 
 
 def _block(block) -> dict:
