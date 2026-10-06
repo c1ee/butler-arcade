@@ -30,6 +30,7 @@ class Email:
     subject: str
     body: str  # plain text, including whatever quote the sender's mail app pasted
     sent_at: datetime | None
+    sender_name: str = ""  # display name from the From header, if any
 
 
 @dataclass(frozen=True)
@@ -190,13 +191,15 @@ def _sent_at(date: str) -> datetime | None:
 
 def _email(raw: dict, id_key: str, sender_key: str) -> Email:
     # SearchEmailsByQuery says `message_id`/`sender`; GetThread and GetEmail say `id`/`from_`.
+    name, address = parseaddr(raw[sender_key] or "")
     return Email(
         message_id=raw[id_key],
         thread_id=raw["thread_id"],
-        sender=parseaddr(raw[sender_key] or "")[1].lower(),
+        sender=address.lower(),
         to=_addresses(raw["to"]),
         cc=_addresses(raw["cc"]),
         subject=raw["subject"] or "",
         body=raw["body"] or "",
         sent_at=_sent_at(raw["date"]),
+        sender_name=name,
     )

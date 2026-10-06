@@ -5,6 +5,7 @@ what the calendar can't: email answers, Plus-ones, Dietary needs, Guest notes, t
 last calendar snapshot to diff against. A Guest's status is derived, never stored.
 """
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -15,6 +16,8 @@ CREATE TABLE IF NOT EXISTS dinner (
     id INTEGER PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'draft',  -- draft / draft_shown / active / confirming_cancel / canceled / closed
     title TEXT,
+    host_email TEXT,
+    host_name TEXT,  -- display name from the Host's first email, if any
     start_at TEXT,  -- ISO 8601 with offset
     place TEXT,
     group_threshold INTEGER NOT NULL DEFAULT 2,
@@ -35,6 +38,42 @@ CREATE TABLE IF NOT EXISTS guest (
     guest_thread_id TEXT,
     group_joined_at TEXT,
     UNIQUE (dinner_id, email)
+);
+CREATE TABLE IF NOT EXISTS host_note (
+    id INTEGER PRIMARY KEY,
+    dinner_id INTEGER NOT NULL REFERENCES dinner(id),
+    text TEXT NOT NULL,
+    shareable INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS change (
+    id INTEGER PRIMARY KEY,
+    dinner_id INTEGER NOT NULL REFERENCES dinner(id),
+    kind TEXT NOT NULL,  -- approve / rsvp / time / place / note / group_start / cancel
+    payload TEXT NOT NULL DEFAULT '{}'
+);
+-- Every email and calendar write Butler makes, queued in the same transaction as the state it reflects (D5).
+-- A row belongs to a Change, or answers one inbound email (Butler's reply).
+CREATE TABLE IF NOT EXISTS outbox (
+    id INTEGER PRIMARY KEY,
+    change_id INTEGER REFERENCES change(id),
+    message_id TEXT,  -- the inbound email this row replies to
+    channel TEXT NOT NULL,  -- calendar / host / guest / group
+    recipient TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending / sent
+    sent_message_id TEXT,
+    CHECK ((change_id IS NULL) != (message_id IS NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS outbox_change ON outbox (change_id, channel, recipient) WHERE change_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS outbox_reply ON outbox (message_id, channel, recipient) WHERE message_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS trace (
+    id INTEGER PRIMARY KEY,
+    gmail_message_id TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    kind TEXT NOT NULL,  -- claude / tool
+    input TEXT NOT NULL,
+    output TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS message (
     gmail_message_id TEXT PRIMARY KEY,
@@ -117,6 +156,18 @@ class Store:
             f"SELECT * FROM dinner WHERE status NOT IN {OVER} ORDER BY id DESC LIMIT 1"
         ).fetchone()
 
+    def guests(self, dinner_id: int) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM guest WHERE dinner_id = ? ORDER BY id", (dinner_id,)).fetchall()
+
+    def remove_guest(self, dinner_id: int, email: str) -> None:
+        self.db.execute("DELETE FROM guest WHERE dinner_id = ? AND email = ?", (dinner_id, email.lower()))
+
+    def update_guest(self, dinner_id: int, email: str, **fields) -> None:
+        assignments = ", ".join(f"{column} = ?" for column in fields)
+        self.db.execute(
+            f"UPDATE guest SET {assignments} WHERE dinner_id = ? AND email = ?", (*fields.values(), dinner_id, email.lower())
+        )
+
     def guest(self, dinner_id: int, email: str) -> sqlite3.Row | None:
         return self.db.execute(
             "SELECT * FROM guest WHERE dinner_id = ? AND email = ?", (dinner_id, email.lower())
@@ -136,6 +187,52 @@ class Store:
         if guest:
             return self.dinner(guest["dinner_id"]), "guest_thread", guest["email"]
         return None
+
+    # Host notes
+
+    def add_note(self, dinner_id: int, text: str, shareable: bool) -> int:
+        return self.db.execute(
+            "INSERT INTO host_note (dinner_id, text, shareable) VALUES (?, ?, ?)", (dinner_id, text, int(shareable))
+        ).lastrowid
+
+    def notes(self, dinner_id: int) -> list[sqlite3.Row]:
+        return self.db.execute(
+            "SELECT * FROM host_note WHERE dinner_id = ? AND deleted = 0 ORDER BY id", (dinner_id,)
+        ).fetchall()
+
+    def delete_note(self, dinner_id: int, note_id: int) -> bool:
+        cursor = self.db.execute(
+            "UPDATE host_note SET deleted = 1 WHERE dinner_id = ? AND id = ? AND deleted = 0", (dinner_id, note_id)
+        )
+        return cursor.rowcount == 1
+
+    # Changes, outbox, traces
+
+    def add_change(self, dinner_id: int, kind: str, payload: dict | None = None) -> int:
+        return self.db.execute(
+            "INSERT INTO change (dinner_id, kind, payload) VALUES (?, ?, ?)", (dinner_id, kind, json.dumps(payload or {}))
+        ).lastrowid
+
+    def queue(self, channel: str, recipient: str, payload: dict, change_id: int | None = None,
+              message_id: str | None = None) -> None:
+        self.db.execute(
+            "INSERT INTO outbox (change_id, message_id, channel, recipient, payload) VALUES (?, ?, ?, ?, ?)",
+            (change_id, message_id, channel, recipient, json.dumps(payload)),
+        )
+
+    def pending(self) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM outbox WHERE status = 'pending' ORDER BY id").fetchall()
+
+    def mark_sent(self, outbox_id: int, sent_message_id: str | None) -> None:
+        self.db.execute(
+            "UPDATE outbox SET status = 'sent', sent_message_id = ? WHERE id = ?", (sent_message_id, outbox_id)
+        )
+
+    def add_trace(self, message_id: str, step: int, kind: str, input, output) -> None:
+        self.db.execute(
+            "INSERT INTO trace (gmail_message_id, step, kind, input, output) VALUES (?, ?, ?, ?, ?)",
+            (message_id, step, kind, json.dumps(input, default=str), json.dumps(output, default=str)),
+        )
 
     def close_finished(self, now: datetime) -> list[int]:
         """Close approved Dinners that started more than an hour ago. Returns the closed ids."""
