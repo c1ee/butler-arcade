@@ -112,14 +112,46 @@ def draft_preview(dinner, notes, guests) -> str:
     return "\n".join(lines)
 
 
-def description(dinner, notes, coming: list[str], headcount: int, butler_email: str) -> str:
+def guest_label(guest) -> str:
+    """How others see a Guest: display name from their emails, else their address."""
+    return guest["name"] or guest["email"]
+
+
+def coming(names: list[str], headcount: int) -> str:
+    """Coming: 3 (August Lee, Xhaka + 1 more). Per-Guest Plus-ones stay private (own scope), only the total shows."""
+    if not names:
+        return "Coming: no guests yet"
+    extra = headcount - len(names)
+    return f"Coming: {headcount} ({', '.join(names)}{f' + {extra} more' if extra else ''})"
+
+
+def host_notice(guest, was: str, now: str, headcount: int) -> str:
+    """The Host's private notice after a Guest's RSVP changes by email (G1–G3). Calendar answers don't get one (D13)."""
+    who = f"{guest['name']} ({guest['email']})" if guest["name"] else guest["email"]
+    if now == "attending" and was != "attending":
+        lines = [f"{who} is coming!"]
+    elif now == "declined" and was != "declined":
+        lines = [f"{who} can't make it."]
+    else:
+        lines = [f"{who} updated their RSVP."]
+    if now == "attending":
+        lines.append(f"Bringing: {guest['plus_ones'] or 'no one'} {'more' if guest['plus_ones'] else ''}".rstrip())
+        if guest["dietary_needs"]:
+            lines.append(f"Dietary needs: {guest['dietary_needs']}")
+        if guest["guest_note"]:
+            lines.append(f"Note: {guest['guest_note']}")
+    lines += ["", f"Headcount is now {headcount}."]
+    return sign("\n".join(lines))
+
+
+def description(dinner, notes, coming_names: list[str], headcount: int, butler_email: str) -> str:
     """The Calendar event description: public scope only (D3), re-rendered on every Change."""
     host = host_label(dinner)
     lines = [
         f"Hosted by {host}. Organized by Butler ({butler_email}): to change your RSVP or ask a question, "
         "reply to Butler's email.",
         "",
-        f"Coming: {headcount} ({', '.join(coming)})" if coming else "Coming: no guests yet",
+        coming(coming_names, headcount),
     ]
     if shared := _shareable(notes):
         lines += ["", f"From {host}:", *shared]

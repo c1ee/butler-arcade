@@ -10,10 +10,11 @@ import logging
 import re
 from dataclasses import dataclass
 
-from butler import tools
+from butler import render, tools
 from butler.config import TIMEZONE
 from butler.gateway import Email, Gateway
 from butler.render import ZONE
+from butler.store import LIVE, status
 from butler.tools import Ctx, ToolError
 
 log = logging.getLogger("butler")
@@ -84,13 +85,39 @@ it", "👍"). If they approve but change something, update the draft instead: th
 approve that one."""
 
 
+GUEST = """This is a Guest's private email thread with you. {host} invited them to dinner; you sent the invite.
+
+- Their RSVP: when they clearly say yes or no, record it with record_rsvp, together with any Plus-ones, Dietary \
+needs, or note for {host} in the same email. "Maybe", "probably", or "yes if it doesn't rain" aren't answers: \
+record nothing and ask for a yes or no. They can change their mind any time; record the new answer.
+- Saying yes puts them on the calendar invite (Google emails it to them); saying no takes them off. Only {host} \
+sees Dietary needs and notes.
+- If they decline, a short, warm thank-you is all the reply needs.
+- Questions: answer only from the dinner facts below. If the answer isn't there, say you don't know and suggest \
+they ask {host} directly. Never guess or invent details.
+- Only {host} can change the dinner (time, place, who's invited). If they ask for a change, say so kindly and \
+suggest they ask {host}.
+- Reply to what they wrote. Don't recap their RSVP or dinner details they didn't ask about, unless it just changed.
+- Don't call get_event or get_my_rsvp for what's already below; record_rsvp returns their updated RSVP."""
+
+
 def answer(claude, model: str, ctx: Ctx, turn: Turn) -> str:
-    phase = ctx.store.dinner(ctx.dinner_id)["status"]
-    if phase not in tools.SETUP:
+    store, dinner_id = ctx.store, ctx.dinner_id
+    dinner = store.dinner(dinner_id)
+    phase = dinner["status"]
+    if phase in tools.SETUP and turn.channel == "host_thread":
+        facts = f"The draft right now:\n{json.dumps(tools.draft_state(store, dinner_id), indent=1)}"
+        system = f"{BUTLER}\n\n{SETUP}"
+    elif phase in LIVE and turn.role == "guest" and turn.channel == "guest_thread":
+        facts = (f"The dinner (everything Guests may know):\n{json.dumps(tools.public_facts(store, dinner_id), indent=1)}"
+                 f"\n\nTheir RSVP so far:\n{json.dumps(tools.own_rsvp(store, dinner_id, ctx.sender), indent=1)}")
+        system = f"{BUTLER}\n\n{GUEST.format(host=render.host_label(dinner))}"
+    else:
         raise NotImplementedError(f"no tool loop yet for {turn.role} in {turn.channel} ({phase})")
-    names = tools.toolset(turn.role, turn.channel, phase)
-    facts = f"The draft right now:\n{json.dumps(tools.draft_state(ctx.store, ctx.dinner_id), indent=1)}"
-    system = f"{BUTLER}\n\n{SETUP}"
+    guest = store.guest(dinner_id, ctx.sender)
+    attending = guest is not None and status(guest) == "attending"
+    # TODO(ticket 12): get_group_thread
+    names = [name for name in tools.toolset(turn.role, turn.channel, phase, attending) if name in tools.TOOLS]
     return run(claude, model, system, prompt(ctx, turn, facts), [tools.TOOLS[name] for name in names], ctx,
                turn.email.message_id)
 

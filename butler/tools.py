@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from butler import effects, render
 from butler.config import Settings
-from butler.store import Store
+from butler.store import LIVE, Store, headcount, status
 
 SETUP = ("draft", "draft_shown")  # phases before the Host approves
 
@@ -207,6 +207,93 @@ def send_invites(ctx: Ctx, args: NoArgs) -> dict:
     }
 
 
+# Guests (G1–G3, G6)
+
+
+def public_facts(store: Store, dinner_id: int) -> dict:
+    """What any Guest may know (D3): the calendar event's face. Never Invited or Declined Guests, Dietary needs,
+    Guest notes, per-Guest Plus-ones, or private Host notes."""
+    dinner, guests = store.dinner(dinner_id), store.guests(dinner_id)
+    return {
+        "dinner": dinner["title"],
+        "host": render.host_label(dinner),
+        "when": render.when(datetime.fromisoformat(dinner["start_at"])),
+        "place": dinner["place"],
+        "from_the_host": [note["text"] for note in store.notes(dinner_id) if note["shareable"]],
+        "headcount": headcount(guests),
+        "coming": [render.guest_label(guest) for guest in guests if status(guest) == "attending"],
+    }
+
+
+def own_rsvp(store: Store, dinner_id: int, email: str) -> dict:
+    """The sender's own RSVP (own scope)."""
+    guest = store.guest(dinner_id, email)
+    return {
+        "status": status(guest),
+        "plus_ones": guest["plus_ones"],
+        "dietary_needs": guest["dietary_needs"],
+        "note_for_host": guest["guest_note"],
+    }
+
+
+def get_event(ctx: Ctx, args: NoArgs) -> dict:
+    return public_facts(ctx.store, ctx.dinner_id)
+
+
+def get_my_rsvp(ctx: Ctx, args: NoArgs) -> dict:
+    return own_rsvp(ctx.store, ctx.dinner_id, ctx.sender)
+
+
+class RecordRsvp(BaseModel):
+    attending: bool = Field(description="True if they're coming, false if not. Only a clear yes or no.")
+    plus_ones: int | None = Field(
+        None, ge=0, le=20,
+        description="How many extra people they're bringing besides themselves ('me and my partner' = 1, "
+        "'3 of us' = 2). Omit if they didn't say.",
+    )
+    dietary_needs: str | None = Field(
+        None, description="Everything they or their Plus-ones can't or won't eat, as it stands now (replaces what's "
+        "recorded, so keep what still holds). Empty string clears it. Omit if they didn't mention any.",
+    )
+    note_for_host: str | None = Field(
+        None, description="Anything else they want the Host to know, as it stands now (replaces what's recorded). "
+        "Empty string clears it. Omit if none.",
+    )
+
+
+def record_rsvp(ctx: Ctx, args: RecordRsvp) -> dict:
+    """Writes for the sender only: there's no Guest parameter (D4). Calendar writes and the Host's notice are queued
+    after the loop, from the net change (effects.rsvp)."""
+    store, dinner_id, sender = ctx.store, ctx.dinner_id, ctx.sender
+    if store.dinner(dinner_id)["status"] not in LIVE:
+        raise ToolError("This dinner isn't taking RSVPs.")
+    guest = store.guest(dinner_id, sender)
+    if guest is None:
+        raise ToolError("The sender isn't on the guest list.")
+
+    fields = {"email_answer": "yes" if args.attending else "no"}
+    if args.attending and not guest["on_calendar"]:
+        fields |= {"on_calendar": 1, "calendar_answer": "needsAction"}
+    elif args.attending and guest["calendar_answer"] == "declined":
+        fields["calendar_answer"] = "needsAction"  # re-added: a fresh invite, awaiting their answer (D13)
+    elif not args.attending:
+        fields |= {"on_calendar": 0, "calendar_answer": None}
+    if args.plus_ones is not None:
+        fields["plus_ones"] = args.plus_ones
+    if args.dietary_needs is not None:
+        fields["dietary_needs"] = args.dietary_needs.strip() or None
+    if args.note_for_host is not None:
+        fields["guest_note"] = args.note_for_host.strip() or None
+    store.update_guest(dinner_id, sender, **fields)
+
+    result = {"recorded": own_rsvp(store, dinner_id, sender)}
+    if args.attending and (not guest["on_calendar"] or guest["calendar_answer"] == "declined"):
+        result["calendar"] = "Google will email them a calendar invite for the dinner."
+    elif not args.attending and guest["on_calendar"]:
+        result["calendar"] = "Taken off the calendar invite."
+    return result
+
+
 TOOLS = {
     tool.name: tool
     for tool in [
@@ -223,6 +310,21 @@ TOOLS = {
             "each Guest a private invite. Only when the Host approved the draft shown to them, with no changes.",
             NoArgs,
             send_invites,
+        ),
+        Tool(
+            "get_event",
+            "The dinner as Guests see it: time, place, notes from the Host, Headcount, and who's coming.",
+            NoArgs,
+            get_event,
+        ),
+        Tool("get_my_rsvp", "The sender's own RSVP: status, Plus-ones, Dietary needs, note.", NoArgs, get_my_rsvp),
+        Tool(
+            "record_rsvp",
+            "Record the sender's RSVP, with any Plus-ones, Dietary needs, or note for the Host they gave. Only for a "
+            "clear yes or no; 'maybe' or 'yes if...' isn't one. Changing their mind is fine: record the new answer. "
+            "Always writes for the sender, never anyone else.",
+            RecordRsvp,
+            record_rsvp,
         ),
     ]
 }

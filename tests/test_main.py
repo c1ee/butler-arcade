@@ -115,7 +115,7 @@ def test_tick_closes_a_dinner_an_hour_after_it_starts():
     with store.transaction():
         store.create_dinner(status="active", start_at=start.isoformat())
         store.create_dinner(status="draft", start_at=start.isoformat())
-    tick(None, store, start + timedelta(minutes=59))
+    tick(FakeGateway(), store, SETTINGS, start + timedelta(minutes=59))
     assert store.dinner(1)["status"] == "active"
-    tick(None, store, start + timedelta(hours=1))
+    tick(FakeGateway(), store, SETTINGS, start + timedelta(hours=1))
     assert [store.dinner(1)["status"], store.dinner(2)["status"]] == ["closed", "draft"]

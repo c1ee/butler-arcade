@@ -5,7 +5,7 @@ from itertools import count
 from types import SimpleNamespace
 
 from butler.config import Settings
-from butler.gateway import Email, Sent
+from butler.gateway import Attendee, Email, Event, Sent
 
 BUTLER = "butler@example.com"
 HOST = "host@example.com"
@@ -21,6 +21,7 @@ class FakeGateway:
         self.threads: dict[str, list[Email]] = {}
         self.sent: list[dict] = []
         self.events: dict[str, dict] = {}
+        self.invited: list[tuple[str, str]] = []  # (event id, email) for every calendar invite Google sent
         self._ids = count(1)
 
     def receive(self, sender, body, thread_id=None, subject="dinner", sender_name="") -> Email:
@@ -53,8 +54,32 @@ class FakeGateway:
     def create_event(self, title, start, end, place, description, host):
         event_id = f"e{next(self._ids)}"
         self.events[event_id] = {"title": title, "start": start, "end": end, "place": place,
-                                 "description": description, "attendees": [host]}
+                                 "description": description, "attendees": [host], "answers": {}}
+        self.invited.append((event_id, host))
         return event_id
+
+    # Like Google: only creating the event and adding an attendee email anyone (`invited`); a removed attendee's
+    # answer is forgotten, so a re-added one is awaiting again.
+
+    def get_event(self, event_id):
+        event = self.events[event_id]
+        attendees = tuple(Attendee(email, event["answers"].get(email, "needsAction"), 0) for email in event["attendees"])
+        return Event(event_id, event["title"], event["start"], event["end"], event["place"], event["description"],
+                     attendees)
+
+    def update_event(self, event_id, start=None, end=None, place=None, description=None):
+        changes = {"start": start, "end": end, "place": place, "description": description}
+        self.events[event_id] |= {key: value for key, value in changes.items() if value is not None}
+
+    def add_attendee(self, event_id, email):
+        if email not in self.events[event_id]["attendees"]:
+            self.events[event_id]["attendees"].append(email)
+        self.invited.append((event_id, email))
+
+    def remove_attendee(self, event_id, email):
+        event = self.events[event_id]
+        event["attendees"] = [attendee for attendee in event["attendees"] if attendee != email]
+        event["answers"].pop(email, None)
 
 
 def text(value):

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS guest (
     id INTEGER PRIMARY KEY,
     dinner_id INTEGER NOT NULL REFERENCES dinner(id),
     email TEXT NOT NULL,
+    name TEXT,  -- display name from the Guest's emails, if any
     email_answer TEXT NOT NULL DEFAULT 'none',  -- none / yes / no
     on_calendar INTEGER NOT NULL DEFAULT 0,
     calendar_answer TEXT,  -- last snapshot
@@ -95,6 +96,19 @@ OVER = ("canceled", "closed")
 LIVE = ("active", "confirming_cancel")  # approved and not over
 
 
+def status(guest) -> str:
+    """invited / attending / declined, derived from the calendar snapshot and the email answer (D13)."""
+    if guest["on_calendar"]:
+        return "declined" if guest["calendar_answer"] == "declined" else "attending"
+    return "declined" if guest["email_answer"] == "no" else "invited"
+
+
+def headcount(guests) -> int:
+    """Attending Guests plus their Plus-ones. The Host isn't counted."""
+    coming = [guest for guest in guests if status(guest) == "attending"]
+    return len(coming) + sum(guest["plus_ones"] for guest in coming)
+
+
 class Store:
     def __init__(self, path: Path | str):
         self.db = sqlite3.connect(path)
@@ -150,6 +164,9 @@ class Store:
     def dinner(self, dinner_id: int) -> sqlite3.Row | None:
         return self.db.execute("SELECT * FROM dinner WHERE id = ?", (dinner_id,)).fetchone()
 
+    def live_dinners(self) -> list[sqlite3.Row]:
+        return self.db.execute(f"SELECT * FROM dinner WHERE status IN {LIVE} ORDER BY id").fetchall()
+
     def current_dinner(self) -> sqlite3.Row | None:
         """The one Dinner that isn't over (D14: one at a time)."""
         return self.db.execute(
@@ -172,6 +189,14 @@ class Store:
         return self.db.execute(
             "SELECT * FROM guest WHERE dinner_id = ? AND email = ?", (dinner_id, email.lower())
         ).fetchone()
+
+    def last_from(self, thread_id: str, sender: str) -> str | None:
+        """The newest email Butler processed from `sender` in a thread: what Butler replies to when it posts there."""
+        row = self.db.execute(
+            "SELECT gmail_message_id FROM message WHERE thread_id = ? AND sender = ? ORDER BY rowid DESC LIMIT 1",
+            (thread_id, sender),
+        ).fetchone()
+        return row["gmail_message_id"] if row else None
 
     def find_thread(self, thread_id: str) -> tuple[sqlite3.Row, str, str | None] | None:
         """(Dinner, channel, the Guest's email for a Guest thread) for a thread Butler knows, any Dinner."""

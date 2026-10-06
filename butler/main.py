@@ -11,11 +11,11 @@ from datetime import UTC, datetime
 
 import anthropic
 
-from butler import agent, config, effects, render, tools
+from butler import agent, config, effects, render, sync, tools
 from butler.config import Settings
 from butler.gateway import Email, Gateway
 from butler.router import Route, route
-from butler.store import Store
+from butler.store import LIVE, Store
 
 log = logging.getLogger("butler")
 
@@ -42,8 +42,8 @@ def handle(email: Email, r: Route, gateway: Gateway, claude, store: Store, setti
     """One email, exactly once: its state changes, outbox rows (reply included), and "processed" commit together;
     sending happens after (D5). A failure before the commit leaves the email to be retried on the next poll."""
     dinner = store.dinner(r.dinner_id) if r.dinner_id else None
-    if r.skipped or r.channel != "host_thread" or dinner and dinner["status"] not in tools.SETUP:
-        # TODO(tickets 11–13): Guest threads, the Group thread, and the Host thread after approval.
+    if not converses(r, dinner):
+        # TODO(tickets 12–13): the Group thread, and the Host thread after approval.
         with store.transaction():
             store.mark_processed(email, r, now)
         return
@@ -54,20 +54,39 @@ def handle(email: Email, r: Route, gateway: Gateway, claude, store: Store, setti
             dinner_id = store.create_dinner(host_email=email.sender, host_name=email.sender_name or None,
                                             host_thread_id=email.thread_id)
             r = replace(r, dinner_id=dinner_id)
+        if r.role == "guest":
+            if email.sender_name:
+                store.update_guest(r.dinner_id, email.sender, name=email.sender_name)
+            before = store.guest(r.dinner_id, email.sender)
         ctx = tools.Ctx(store, settings, r.dinner_id, email.sender, now)
         body = agent.answer(claude, settings.model, ctx, agent.Turn(email, r.role, r.channel, earlier))
-        if preview := tools.show_draft(store, r.dinner_id):
-            body = f"{body}\n\n{preview}"
-        effects.reply(store, email, "host", render.sign(body))
+        if r.role == "guest":
+            effects.rsvp(store, settings, r.dinner_id, before)
+            effects.reply(store, email, "guest", render.sign(body, store.dinner(r.dinner_id)))
+        else:
+            if preview := tools.show_draft(store, r.dinner_id):
+                body = f"{body}\n\n{preview}"
+            effects.reply(store, email, "host", render.sign(body))
         store.mark_processed(email, r, now)
     log.info("replied to %s (Dinner %s now %s)", email.sender, r.dinner_id, store.dinner(r.dinner_id)["status"])
     effects.flush(gateway, store)
 
 
-def tick(gateway: Gateway, store: Store, now: datetime) -> None:
+def converses(r: Route, dinner) -> bool:
+    """Whether this email goes to the tool loop: the Host's draft conversation, or a Guest in their own thread."""
+    if r.skipped:
+        return False
+    if r.channel == "host_thread":
+        return dinner is None or dinner["status"] in tools.SETUP
+    return r.channel == "guest_thread" and r.role == "guest" and dinner["status"] in LIVE
+
+
+def tick(gateway: Gateway, store: Store, settings: Settings, now: datetime) -> None:
     with store.transaction():
         for dinner_id in store.close_finished(now):
             log.info("Dinner %s closed: an hour past its start", dinner_id)
+    sync.sync(gateway, store, settings)
+    effects.flush(gateway, store)
 
 
 def describe(email: Email, r: Route) -> str:
@@ -94,7 +113,7 @@ def main() -> None:
             now = datetime.now(UTC)
             try:
                 poll_once(gateway, claude, store, settings, now)
-                tick(gateway, store, now)
+                tick(gateway, store, settings, now)
             except Exception:
                 log.exception("poll failed; retrying next poll")
             if args.once:
