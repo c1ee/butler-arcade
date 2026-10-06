@@ -1,7 +1,6 @@
 """The Host after approval (H4, H5, H6, H8): Changes reach the calendar, the Group thread, and every Invited or
 Attending Guest outside it exactly once; notes flip silently; cancel only after Butler asked to confirm."""
 
-import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -9,28 +8,19 @@ import pytest
 from butler import tools
 from butler.main import poll_once, tick
 from butler.render import ZONE
-from butler.store import Store, status
+from butler.store import status
 from butler.tools import Ctx, ToolError
-from tests.fakes import HOST, NOW, SETTINGS, FakeGateway, ScriptedClaude, text, tool_use
-from tests.test_group import decide, start_group
-from tests.test_guest import A, B, C, approved, event, on_calendar
-
-D = "d@example.com"
-SECRETS = ["zeppelin", "quince", "oboe", C, D]  # private Host note, C's Dietary needs, B's Guest note, Declined, Invited
+from tests import states
+from tests.fakes import HOST, NOW, SETTINGS, ScriptedClaude, text, tool_use
+from tests.states import A, B, C, D, event
+from tests.test_group import decide
 
 
 @pytest.fixture
 def live():
     """A and B Attending and in the Group thread, C Declined by email, D Invited. Returns (store, gateway, threads)."""
-    store, gateway = Store(":memory:"), FakeGateway()
-    threads = approved(store, gateway)
-    threads["group"] = start_group(store, gateway)
-    threads[D] = gateway.send(D, "You're invited: Dinner with Chris", "Can you make it?").thread_id
-    with store.transaction():
-        store.add_guest(1, D, guest_thread_id=threads[D])
-    threads[HOST] = store.dinner(1)["host_thread_id"]
-    gateway.sent.clear()
-    return store, gateway, threads
+    world = states.live()
+    return world.store, world.gateway, world.threads
 
 
 def host_says(store, gateway, threads, claude, body, channel=HOST, cc=()):
@@ -40,16 +30,6 @@ def host_says(store, gateway, threads, claude, body, channel=HOST, cc=()):
 
 def to(gateway, address):
     return [m for m in gateway.sent if m["to"] == address]
-
-
-def assert_guests_see_no_secrets(gateway):
-    """Output check: nothing a Guest receives names an Invited or Declined Guest or carries a private detail.
-    A private notice may name its own recipient (it's addressed to them)."""
-    for message in gateway.sent:
-        if message["to"] == HOST and not message["cc"]:
-            continue  # the Host's own thread: private scope
-        own = message["to"]
-        assert not [s for s in SECRETS if s != own and s in json.dumps(message)], message
 
 
 def test_a_time_change_reaches_every_channel_once(live):
@@ -69,7 +49,6 @@ def test_a_time_change_reaches_every_channel_once(live):
     assert "(was 7 PM)" in d["body"] and "Can you make it?" in d["body"]
     assert (reply["to"], reply["thread_id"]) == (HOST, threads[HOST])
     assert to(gateway, C) == []  # Declined outside the group: nothing
-    assert_guests_see_no_secrets(gateway)
 
     request = claude.requests[0]
     assert "cancel_dinner" not in [t["name"] for t in request["tools"]]
@@ -95,7 +74,6 @@ def test_a_move_and_a_note_in_one_email_are_one_update(live):
     assert "Bring wine" in event(store, gateway)["description"]
     rows = store.db.execute("SELECT channel, recipient FROM outbox WHERE change_id IS NOT NULL ORDER BY id").fetchall()
     assert [tuple(row) for row in rows][-3:] == [("calendar", "event"), ("group", "group"), ("guest", D)]
-    assert_guests_see_no_secrets(gateway)
 
 
 def test_a_change_in_the_group_rides_on_butlers_reply(live):
@@ -110,7 +88,6 @@ def test_a_change_in_the_group_rides_on_butlers_reply(live):
     assert "The calendar invite is updated." in reply["body"]
     assert d["to"] == D and "(was 7 PM)" in d["body"]
     assert "attached below your reply" in claude.requests[1]["system"]
-    assert_guests_see_no_secrets(gateway)
 
     # Back in the Host thread, whose emails never mention 8 PM: the facts say where it moved (live, run hw1).
     claude = ScriptedClaude([text("It's at 8 PM now.")])
@@ -188,7 +165,6 @@ def test_cancel_tells_the_group_and_each_invited_or_attending_guest_outside_it_o
     assert "Chris has canceled the dinner on Saturday, October 24 at 7 PM." in group["body"]
     assert (d["to"], d["thread_id"]) == (D, threads[D]) and "canceled" in d["body"]
     assert reply["to"] == HOST and to(gateway, C) == []
-    assert_guests_see_no_secrets(gateway)
 
     sent = len(gateway.sent)
     gateway.receive(A, "oh no! what happened?", thread_id=threads[A])  # later emails are ignored

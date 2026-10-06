@@ -13,8 +13,16 @@ SETTINGS = Settings(arcade_api_key="", anthropic_api_key="", butler_user_id=BUTL
 NOW = datetime(2026, 10, 6, 20, 0, tzinfo=UTC)  # Tuesday 1 PM in Los Angeles
 
 
+def gmail_quote(email: Email) -> str:
+    """What Gmail pastes below a reply (ticket 05): an attribution line, then the replied-to email, quote and all."""
+    who = f"{email.sender_name} <{email.sender}>" if email.sender_name else email.sender
+    quoted = "\n".join(f"> {line}" if line else ">" for line in email.body.splitlines())
+    return f"\n\nOn Tue, Oct 6, 2026 at 1:00 PM {who} wrote:\n\n{quoted}"
+
+
 class FakeGateway:
-    """Butler's mailbox and calendar in memory. Replies go to the replied-to email's sender, in its thread."""
+    """Butler's mailbox and calendar in memory. Replies go to the replied-to email's sender, in its thread, and quote
+    it like Gmail."""
 
     def __init__(self):
         self.inbox: list[Email] = []
@@ -31,16 +39,24 @@ class FakeGateway:
         self.threads.setdefault(email.thread_id, []).append(email)
         return email
 
+    def add_to_thread(self, sender, body, thread_id, to=(BUTLER,), cc=(), sender_name="") -> Email:
+        """An email already in a thread before the test starts: in the thread, not new in the inbox."""
+        email = Email(f"m{next(self._ids)}", thread_id, sender, tuple(to), tuple(cc), "dinner", body, NOW, sender_name)
+        self.threads.setdefault(thread_id, []).append(email)
+        return email
+
     def search_inbox(self, after):
         return list(self.inbox)
 
     def get_thread(self, thread_id):
         return list(self.threads.get(thread_id, []))
 
-    def _deliver(self, thread_id, to: list, cc: list, subject, body) -> Sent:
+    def _deliver(self, thread_id, to: list, cc: list, subject, body, quote="") -> Sent:
+        """`body` is what Butler wrote; `quote` what Gmail pasted below it. Recipients read both."""
         message_id = f"m{next(self._ids)}"
-        self.sent.append({"to": ", ".join(to), "cc": cc, "subject": subject, "body": body, "thread_id": thread_id})
-        email = Email(message_id, thread_id, BUTLER, tuple(to), tuple(cc), subject, body, NOW, "Butler")
+        self.sent.append({"to": ", ".join(to), "cc": cc, "subject": subject, "body": body, "quote": quote,
+                          "thread_id": thread_id})
+        email = Email(message_id, thread_id, BUTLER, tuple(to), tuple(cc), subject, body + quote, NOW, "Butler")
         self.threads.setdefault(thread_id, []).append(email)
         return Sent(message_id, thread_id)
 
@@ -57,21 +73,22 @@ class FakeGateway:
             to = [a for a in dict.fromkeys((original.sender, *original.to)) if a != BUTLER]
             merged = [*original.cc, *(cc or [])]
         cc = [address for address in dict.fromkeys(merged) if address != BUTLER and address not in to]
-        return self._deliver(original.thread_id, to, cc, "Re: " + original.subject, body)
+        return self._deliver(original.thread_id, to, cc, "Re: " + original.subject, body, gmail_quote(original))
 
     def create_event(self, title, start, end, place, description, host):
         event_id = f"e{next(self._ids)}"
         self.events[event_id] = {"title": title, "start": start, "end": end, "place": place,
-                                 "description": description, "attendees": [host], "answers": {}}
+                                 "description": description, "attendees": [host], "answers": {}, "extra": {}}
         self.invited.append((event_id, host))
         return event_id
 
     # Like Google: only creating the event and adding an attendee email anyone (`invited`); a removed attendee's
-    # answer is forgotten, so a re-added one is awaiting again.
+    # answer is forgotten, so a re-added one is awaiting again. `extra` holds a Guest's "+N" from the invite.
 
     def get_event(self, event_id):
         event = self.events[event_id]
-        attendees = tuple(Attendee(email, event["answers"].get(email, "needsAction"), 0) for email in event["attendees"])
+        attendees = tuple(Attendee(email, event["answers"].get(email, "needsAction"), event["extra"].get(email, 0))
+                          for email in event["attendees"])
         return Event(event_id, event["title"], event["start"], event["end"], event["place"], event["description"],
                      attendees)
 

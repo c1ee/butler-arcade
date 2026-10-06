@@ -1,0 +1,16 @@
+# Deterministic tests on every push: fake Gmail/Calendar and scripted Claude, so no keys and no cost.
+# The live evals (`uv run pytest evals`) run on demand; their latest results are in evals/RESULTS.md.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run pytest

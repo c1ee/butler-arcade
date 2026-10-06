@@ -34,7 +34,8 @@ class Settings:
         return self.butler_user_id.lower()
 
 
-def _read_env_file(path: Path) -> None:
+def read_env_file(path: Path = ROOT / ".env") -> None:
+    """Copy `.env` into the environment; variables already set win."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -45,7 +46,7 @@ def _read_env_file(path: Path) -> None:
 
 
 def load() -> Settings:
-    _read_env_file(ROOT / ".env")
+    read_env_file()
     missing = [key for key in REQUIRED if not os.environ.get(key)]
     if missing:
         raise SystemExit(f"Missing {', '.join(missing)}. Copy .env.example to .env and fill it in.")

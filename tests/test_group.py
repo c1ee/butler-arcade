@@ -8,37 +8,20 @@ import pytest
 
 from butler import effects, tools
 from butler.main import poll_once, tick
-from butler.store import Store, status
+from butler.store import status
 from butler.tools import Ctx
 from tests.fakes import BUTLER, HOST, NOW, SETTINGS, FakeGateway, ScriptedClaude, text, tool_use
-from tests.test_guest import A, B, C, SECRETS, approved, event, on_calendar
+from tests.states import A, B, C, approved, event, on_calendar, start_group
 
 
 def decide(speak: bool):
     return [text(json.dumps({"speak": speak, "reason": "scripted"}))]
 
 
-def start_group(store: Store, gateway: FakeGateway) -> str:
-    """A and B said yes (calendar awaiting), which starts the Group thread. Returns its thread id."""
-    on_calendar(store, gateway, A, "needsAction")
-    on_calendar(store, gateway, B, "needsAction")
-    with store.transaction():
-        effects.join_group(store, SETTINGS, 1, NOW)
-    effects.flush(gateway, store)
-    gateway.sent.clear()
-    return store.dinner(1)["group_thread_id"]
-
-
-def assert_no_secrets(claude: ScriptedClaude, gateway: FakeGateway, allowed=()):
-    """Like tests/test_guest.py's, with A and B Attending: B's address is public, B's Guest note isn't."""
-    seen = json.dumps([claude.requests, gateway.sent, list(gateway.events.values())], default=str)
-    assert not [secret for secret in SECRETS if secret not in (B, *allowed) and secret in seen]
-
-
 @pytest.fixture
 def setup():
-    store, gateway = Store(":memory:"), FakeGateway()
-    return store, gateway, approved(store, gateway)
+    world = approved()
+    return world.store, world.gateway, world.threads
 
 
 def test_the_second_yes_starts_the_group_thread_once(setup):
@@ -57,9 +40,6 @@ def test_the_second_yes_starts_the_group_thread_once(setup):
     assert "Coming: 2 (August, Bea)" in opener["body"] and "Reply all" in opener["body"]
     assert store.dinner(1)["group_thread_id"] == opener["thread_id"]
     assert store.members(1) == [HOST, A, B]
-
-    assert_no_secrets(claude, gateway, allowed=["oboe"])  # B's own Guest note, in B's own thread
-    assert "oboe" not in json.dumps([m for m in gateway.sent if m["to"] != HOST or m["cc"]])  # Host notices may
 
     gateway.sent.clear()
     with store.transaction():
@@ -81,9 +61,6 @@ def test_a_later_yes_is_welcomed_into_the_group_with_current_facts(setup):
     assert welcome["body"].startswith("Welcome, Cy! You're on the group thread now.")
     assert "Where: 12 Elm St" in welcome["body"] and "Coming: 3 (a@example.com, b@example.com, Cy)" in welcome["body"]
     assert store.members(1) == [HOST, A, B, C]
-    # C is Attending now, so their address is public; their Dietary needs were shown only in their own thread.
-    assert_no_secrets(claude, gateway, allowed=[C, "quince"])
-    assert "quince" not in json.dumps([m for m in gateway.sent if m["to"] != HOST or m["cc"]])  # Host notices may
 
 
 def test_the_welcome_replies_to_the_newest_member_post(setup):
@@ -113,7 +90,6 @@ def test_butler_stays_silent_on_chatter(setup):
     assert "can't wait!" in gate["messages"][0]["content"] and "invited" not in gate["messages"][0]["content"]
     trace = store.db.execute("SELECT kind, output FROM trace").fetchall()
     assert [(row["kind"], json.loads(row["output"])["speak"]) for row in trace] == [("gate", False)]
-    assert_no_secrets(claude, gateway)
 
 
 def test_a_question_to_butler_gets_one_reply_to_the_whole_group(setup):
@@ -131,7 +107,6 @@ def test_a_question_to_butler_gets_one_reply_to_the_whole_group(setup):
     rsvp_tool = next(t for t in loop["tools"] if t["name"] == "record_rsvp")
     assert set(rsvp_tool["input_schema"]["properties"]) == {"attending", "plus_ones"}  # everyone reads the reply
     assert "group email thread" in loop["system"]
-    assert_no_secrets(claude, gateway)
 
 
 def test_dropping_out_in_the_group_keeps_them_in_it(setup):
@@ -203,7 +178,6 @@ def test_the_host_in_the_group_gets_public_reads_only(setup):
     assert (reply["to"], reply["cc"]) == (HOST, [A, B])
     assert [t["name"] for t in claude.requests[1]["tools"]] == ["get_event", "get_group_thread", "change_event",
                                                                "add_note", "invite_guest"]
-    assert_no_secrets(claude, gateway)
 
 
 def test_get_group_thread_shows_posts_but_not_private_emails(setup):

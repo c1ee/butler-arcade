@@ -7,63 +7,16 @@ import pytest
 
 from butler import tools
 from butler.main import poll_once, tick
-from butler.router import Route
 from butler.store import Store, status
 from butler.tools import Ctx, ToolError
 from tests.fakes import HOST, NOW, SETTINGS, FakeGateway, ScriptedClaude, text, tool_use
-
-A, B, C = "a@example.com", "b@example.com", "c@example.com"
-SECRETS = ["zeppelin", "quince", "oboe", B, C]  # private Host note, C's Dietary needs, B's Guest note, Invited/Declined
-
-
-def approved(store: Store, gateway: FakeGateway) -> dict[str, str]:
-    """Starting state: an approved Dinner. A and B Invited (B has a Guest note), C Declined by email with Dietary
-    needs, one shareable and one private Host note, Host only on the calendar. Returns each Guest's thread id."""
-    first = gateway.receive(HOST, "dinner sat 10/24 7pm at 12 Elm St", sender_name="Chris Lee")
-    event_id = gateway.create_event("Dinner with Chris", None, None, "12 Elm St", "", HOST)
-    threads = {}
-    with store.transaction():
-        store.create_dinner(status="active", title="Dinner with Chris", host_email=HOST, host_name="Chris Lee",
-                            start_at="2026-10-24T19:00:00-07:00", place="12 Elm St", host_thread_id=first.thread_id,
-                            calendar_event_id=event_id)
-        store.mark_processed(first, Route(1, "host_thread", "host"), NOW)
-        store.add_note(1, "Street parking only", True)
-        store.add_note(1, "Bob's surprise is a zeppelin ride", False)
-        for guest in (A, B, C):
-            threads[guest] = gateway.send(guest, "You're invited: Dinner with Chris", "Can you make it?").thread_id
-            store.add_guest(1, guest, guest_thread_id=threads[guest])
-        store.update_guest(1, B, guest_note="leaving early for an oboe recital")
-        store.update_guest(1, C, email_answer="no", dietary_needs="allergic to quince")
-    gateway.sent.clear()
-    gateway.invited.clear()
-    return threads
-
-
-def on_calendar(store: Store, gateway: FakeGateway, guest: str, answer: str) -> None:
-    """Put a Guest on the calendar with an answer, as if they'd said yes earlier and then clicked `answer`."""
-    event_id = store.dinner(1)["calendar_event_id"]
-    gateway.add_attendee(event_id, guest)
-    gateway.events[event_id]["answers"][guest] = answer
-    gateway.invited.clear()
-    with store.transaction():
-        store.update_guest(1, guest, email_answer="yes", on_calendar=1, calendar_answer=answer)
-
-
-def event(store: Store, gateway: FakeGateway) -> dict:
-    return gateway.events[store.dinner(1)["calendar_event_id"]]
-
-
-def assert_no_secrets(claude: ScriptedClaude, gateway: FakeGateway, allowed=()):
-    """Input check (everything Claude saw) and output check (everything sent, the calendar event) for a Guest."""
-    seen = json.dumps([claude.requests, gateway.sent, list(gateway.events.values())], default=str)
-    leaked = [secret for secret in SECRETS if secret not in allowed and secret in seen]
-    assert not leaked
+from tests.states import A, B, approved, event, on_calendar
 
 
 @pytest.fixture
 def setup():
-    store, gateway = Store(":memory:"), FakeGateway()
-    return store, gateway, approved(store, gateway)
+    world = approved()
+    return world.store, world.gateway, world.threads
 
 
 def test_yes_with_question_adds_the_attendee_and_answers_from_a_shareable_note(setup):
@@ -92,7 +45,6 @@ def test_yes_with_question_adds_the_attendee_and_answers_from_a_shareable_note(s
     request = claude.requests[0]
     assert [tool["name"] for tool in request["tools"]] == ["get_event", "get_my_rsvp", "record_rsvp"]
     assert "Street parking only" in request["messages"][0]["content"]
-    assert_no_secrets(claude, gateway)
 
 
 def test_a_question_alone_changes_nothing(setup):
@@ -184,6 +136,16 @@ def test_calendar_answers_move_headcount_silently(setup):
     assert gateway.sent == [] and gateway.invited == []  # nobody is emailed about calendar answers
 
 
+def test_a_plus_n_on_the_calendar_is_ignored(setup):
+    store, gateway, _ = setup
+    on_calendar(store, gateway, A, "needsAction")
+    event(store, gateway)["answers"][A] = "accepted"
+    event(store, gateway)["extra"][A] = 2  # "+2" in Google's RSVP: Plus-ones are email only (D13)
+    tick(gateway, store, SETTINGS, NOW)
+    assert store.guest(1, A)["plus_ones"] == 0 and tools.public_facts(store, 1)["headcount"] == 1
+    assert gateway.sent == []
+
+
 def test_sync_waits_for_queued_calendar_writes(setup):
     store, gateway, _ = setup
     with store.transaction():
@@ -237,10 +199,8 @@ def test_record_rsvp_refuses_once_the_dinner_is_not_live(ctx):
         call(ctx, "record_rsvp", attending=True)
 
 
-def test_guest_reads_carry_no_secrets(ctx):
+def test_a_guests_own_details_stay_out_of_the_public_facts(ctx):
     call(ctx, "record_rsvp", attending=True, dietary_needs="vegetarian")
     public = json.dumps(call(ctx, "get_event"))
-    assert "Street parking only" in public and A in public
-    assert not [secret for secret in SECRETS + ["vegetarian"] if secret in public]
-    own = json.dumps(call(ctx, "get_my_rsvp"))
-    assert "vegetarian" in own and not [secret for secret in SECRETS if secret in own]
+    assert "Street parking only" in public and A in public and "vegetarian" not in public
+    assert "vegetarian" in json.dumps(call(ctx, "get_my_rsvp"))

@@ -22,3 +22,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["butler"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]  # `uv run pytest evals` runs the live evals
