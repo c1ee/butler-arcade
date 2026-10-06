@@ -58,7 +58,7 @@ def test_setup_conversation_ends_in_a_calendar_event_and_private_invites():
     preview = gateway.sent[-1]["body"]
     assert store.dinner(1)["status"] == "draft_shown"
     assert "Saturday, October 24 at 7 PM" in preview and "Guests: a@example.com, b@example.com" in preview
-    assert "You're invited: Dinner with Chris, Sat Oct 24, 7 PM" in preview
+    assert "You're invited: Dinner with Chris, Sat Oct 24" in preview
     assert preview.index("The parking note") < preview.index("Here's the draft")
     assert preview.endswith("— Butler")
 

@@ -80,7 +80,7 @@ def test_yes_with_question_adds_the_attendee_and_answers_from_a_shareable_note(s
     assert (status(guest), guest["plus_ones"], guest["dietary_needs"]) == ("attending", 1, "vegetarian")
     assert event(store, gateway)["attendees"] == [HOST, A]
     assert gateway.invited == [(store.dinner(1)["calendar_event_id"], A)]  # Google emails A only
-    assert "Coming: 2 (August Lee + 1 more)" in event(store, gateway)["description"]
+    assert "Coming: 2 (August + 1 more)" in event(store, gateway)["description"]
 
     notice, reply = gateway.sent
     assert (notice["to"], notice["thread_id"]) == (HOST, store.dinner(1)["host_thread_id"])

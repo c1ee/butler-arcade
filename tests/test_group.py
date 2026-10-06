@@ -52,9 +52,9 @@ def test_the_second_yes_starts_the_group_thread_once(setup):
     gateway.sent.clear()
     gateway.receive(B, "count me in", thread_id=threads[B], sender_name="Bea")
     poll_once(gateway, claude, store, SETTINGS, NOW)
-    opener = next(m for m in gateway.sent if m["subject"].startswith("Group thread"))
+    opener = next(m for m in gateway.sent if m["subject"].startswith("Everyone coming"))
     assert (opener["to"], opener["cc"]) == (HOST, [A, B])
-    assert "Coming: 2 (August Lee, Bea)" in opener["body"] and "Reply all" in opener["body"]
+    assert "Coming: 2 (August, Bea)" in opener["body"] and "Reply all" in opener["body"]
     assert store.dinner(1)["group_thread_id"] == opener["thread_id"]
     assert store.members(1) == [HOST, A, B]
 

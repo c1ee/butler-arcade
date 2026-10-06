@@ -25,6 +25,12 @@ def when(at: datetime) -> str:
     return f"{local:%A, %B} {local.day} at {clock(local)}"
 
 
+def short_date(at: datetime) -> str:
+    """Sat Oct 24. Subjects carry no time: a reply can't change its subject, so a new time would leave it stale."""
+    local = at.astimezone(ZONE)
+    return f"{local:%a %b} {local.day}"
+
+
 def short_when(at: datetime) -> str:
     """Sat Oct 24, 7 PM"""
     local = at.astimezone(ZONE)
@@ -56,6 +62,9 @@ def _shareable(notes) -> list[str]:
     return [f"- {note['text']}" for note in notes if note["shareable"]]
 
 
+ASK = "Can you make it? Reply with yes or no. If yes, I'll add you to the calendar invite."
+
+
 def invite(dinner, notes) -> tuple[str, str]:
     """(subject, body) of the private invite each Guest gets (H2). Never names other Guests."""
     host = host_label(dinner)
@@ -71,13 +80,13 @@ def invite(dinner, notes) -> tuple[str, str]:
         lines += ["", f"From {host}:", *shared]
     lines += [
         "",
-        "Can you make it? Just reply to this email with yes or no.",
+        ASK,
         f"Bring whoever you like, just tell me how many and I'll let {host} know. "
         f"Any dietary needs? Mention them too; only {host} will see them.",
         "",
-        "To change your RSVP or ask a question later, just reply to this email.",
+        "Questions, or plans change? Just reply to this email.",
     ]
-    return f"You're invited: {title(dinner)}, {short_when(_start(dinner))}", sign("\n".join(lines), dinner)
+    return f"You're invited: {title(dinner)}, {short_date(_start(dinner))}", sign("\n".join(lines), dinner)
 
 
 def draft_preview(dinner, notes, guests) -> str:
@@ -116,12 +125,13 @@ def draft_preview(dinner, notes, guests) -> str:
 
 
 def guest_label(guest) -> str:
-    """How others see a Guest: display name from their emails, else their address."""
-    return guest["name"] or guest["email"]
+    """How others see a Guest: first name from their emails' display name, else their address."""
+    name = (guest["name"] or "").split()
+    return name[0] if name else guest["email"]
 
 
 def coming(names: list[str], headcount: int) -> str:
-    """Coming: 3 (August Lee, Xhaka + 1 more). Per-Guest Plus-ones stay private (own scope), only the total shows."""
+    """Coming: 3 (August, Xhaka + 1 more). Per-Guest Plus-ones stay private (own scope), only the total shows."""
     if not names:
         return "Coming: no guests yet"
     extra = headcount - len(names)
@@ -142,19 +152,19 @@ def group_opener(dinner, coming_names: list[str], headcount: int) -> tuple[str, 
     lines = [
         "Hi all,",
         "",
-        f"Enough of you said yes, so here's one thread for {host} and everyone coming. Reply all to reach everyone.",
+        f"Here's one thread for {host} and everyone coming. Reply all to reach everyone.",
         "",
         *_facts(dinner, coming_names, headcount),
         "",
         'I\'ll stay quiet here unless you ask me something ("Butler, ..."). To change your RSVP, reply here or to '
         "my invite.",
     ]
-    return f"Group thread: {title(dinner)}, {short_when(_start(dinner))}", sign("\n".join(lines), dinner)
+    return f"Everyone coming: {title(dinner)}, {short_date(_start(dinner))}", sign("\n".join(lines), dinner)
 
 
 def welcome(dinner, joiner_names: list[str], coming_names: list[str], headcount: int) -> str:
     """The Group thread post that adds Guests who said yes after it started (H3). Current facts, no catch-up."""
-    lines = [f"Welcome, {_and(joiner_names)}! You're on the group thread now.", "",
+    lines = [f"Welcome, {_and(joiner_names)}! You're on the group thread now. Reply all to reach everyone.", "",
              *_facts(dinner, coming_names, headcount)]
     return sign("\n".join(lines), dinner)
 
@@ -187,7 +197,7 @@ def change_notice(dinner, lines: list[str], audience: str) -> str:
     it. Invited Guests aren't on the calendar yet, so they're asked to answer instead."""
     host = host_label(dinner)
     head = "Hi all," if audience == "group" else "Hi,"
-    tail = "Can you make it? Just reply to this email with yes or no." if audience == "invited" else CALENDAR_UPDATED
+    tail = ASK if audience == "invited" else CALENDAR_UPDATED
     return sign("\n".join([head, "", f"An update on {host}'s dinner:", "", *lines, "", tail]), dinner)
 
 
