@@ -6,7 +6,7 @@ from butler import agent, tools
 from butler.agent import MAX_STEPS, strip_quote
 from butler.store import Store
 from butler.tools import Ctx
-from tests.fakes import HOST, NOW, SETTINGS, FakeGateway, ScriptedClaude, text, tool_use
+from tests.fakes import BUTLER, HOST, NOW, SETTINGS, FakeGateway, ScriptedClaude, text, tool_use
 
 # Bodies as Arcade returned them in the live check (ticket 05).
 GMAIL = ("Butler reply-all on its own message.\n\nOn Mon, Oct 5, 2026 at 9:55 PM Arri Lee "
@@ -36,7 +36,7 @@ def test_strip_quote(body, written):
 def test_history_is_the_thread_before_this_email():
     gateway = FakeGateway()
     emails = [gateway.receive(HOST, f"msg {n}", thread_id="t") for n in range(13)]
-    earlier = agent.history(gateway, emails[11])
+    earlier = agent.history(gateway, emails[11], "host_thread", BUTLER)
     assert [e.body for e in earlier] == [f"msg {n}" for n in range(1, 11)]
 
 
@@ -52,7 +52,7 @@ def test_prompt_labels_senders_and_strips_quotes(ctx):
     gateway.receive(HOST, "dinner sat?", thread_id="t")
     gateway.reply("m1", "Sure! Where?\n\nOn Tue Host <host@example.com> wrote:\n> dinner sat?")
     new = gateway.receive(HOST, "at mine\n\nOn Tue Butler <butler@example.com> wrote:\n> Sure! Where?", thread_id="t")
-    content = agent.prompt(ctx, agent.Turn(new, "host", "host_thread", agent.history(gateway, new)), "FACTS")
+    content = agent.prompt(ctx, agent.Turn(new, "host", "host_thread", agent.history(gateway, new, "host_thread", BUTLER)), "FACTS")
     assert "Now: Tuesday, October 6, 2026, 13:00 (America/Los_Angeles)." in content
     assert '<email from="Host">\ndinner sat?\n</email>' in content
     assert '<email from="Butler (you)">\nSure! Where?\n</email>' in content

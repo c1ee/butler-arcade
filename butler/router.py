@@ -20,6 +20,17 @@ class Route:
     skipped: str | None = None  # why Butler won't act on it
 
 
+def readers(email: Email, butler_email: str) -> set[str]:
+    """Everyone an email reached, its sender included, Butler left out."""
+    return {email.sender, *email.to, *email.cc} - {butler_email}
+
+
+def private(email: Email, butler_email: str) -> bool:
+    """Between one person and Butler, whoever sent it. In the Group thread, a plain Reply to Butler and Butler's
+    answer to it are private, not posts to the group."""
+    return len(readers(email, butler_email)) < 2
+
+
 def route(email: Email, store: Store, settings: Settings) -> Route:
     sender = email.sender
     if sender == settings.butler_email:
@@ -49,6 +60,9 @@ def route(email: Email, store: Store, settings: Settings) -> Route:
             return Route(dinner_id, channel, role, skipped="not the Host")
         if channel == "guest_thread" and sender != thread_guest:
             return Route(dinner_id, channel, role, skipped="not this Guest's thread")
+        if channel == "group_thread" and private(email, settings.butler_email):
+            # Sent only to Butler (a plain Reply does that), so Butler answers the sender alone.
+            channel = "host_thread" if role == "host" else "guest_thread"
         return Route(dinner_id, channel, role)
 
     # A new thread: an email written fresh, or a reply to Google's calendar invite. Route by sender.

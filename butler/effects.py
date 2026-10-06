@@ -11,7 +11,7 @@ from datetime import datetime
 
 from butler import render
 from butler.config import Settings
-from butler.gateway import Email, Gateway
+from butler.gateway import Email, Gateway, Sent
 from butler.store import Store, headcount, status
 
 log = logging.getLogger("butler")
@@ -87,9 +87,41 @@ def rsvp(store: Store, settings: Settings, dinner_id: int, before) -> None:
         }, change_id=change_id)
 
 
+def join_group(store: Store, settings: Settings, dinner_id: int, now: datetime) -> None:
+    """H3: start the Group thread once Group threshold Guests are Attending, then add each later Attending Guest
+    with a welcome. Membership only grows: a decline (email or calendar) never takes anyone out (D6)."""
+    dinner, guests = store.dinner(dinner_id), store.guests(dinner_id)
+    attending = [guest for guest in guests if status(guest) == "attending"]
+    joiners = [guest["email"] for guest in attending if not guest["group_joined_at"]]
+    started = any(guest["group_joined_at"] for guest in guests)
+    if not joiners or not started and len(attending) < dinner["group_threshold"]:
+        return
+    for email in joiners:
+        store.update_guest(dinner_id, email, group_joined_at=now.isoformat())
+    names, count = [render.guest_label(guest) for guest in attending], headcount(guests)
+    if not started:
+        change_id = store.add_change(dinner_id, "group_start", {"guests": joiners})
+        subject, body = render.group_opener(dinner, names, count)
+        store.queue("group", dinner["host_email"], {"kind": "group_start", "dinner_id": dinner_id, "subject": subject,
+                                                    "body": body, "cc": joiners}, change_id=change_id)
+    else:
+        change_id = store.add_change(dinner_id, "group_join", {"guests": joiners})
+        joined = [render.guest_label(store.guest(dinner_id, email)) for email in joiners]
+        store.queue("group", "group", {"kind": "welcome", "dinner_id": dinner_id,
+                                       "body": render.welcome(dinner, joined, names, count),
+                                       "members": store.members(dinner_id)}, change_id=change_id)
+
+
 def reply(store: Store, email: Email, channel: str, body: str) -> None:
     """Butler's answer to an inbound email, to its sender only, in the same thread."""
     store.queue(channel, email.sender, {"kind": "reply", "body": body}, message_id=email.message_id)
+
+
+def group_reply(store: Store, email: Email, dinner_id: int, body: str) -> None:
+    """Butler's answer to a Group thread post: to its sender, cc every other member (D10)."""
+    cc = [member for member in store.members(dinner_id) if member != email.sender]
+    store.queue("group", email.sender, {"kind": "reply", "dinner_id": dinner_id, "body": body, "cc": cc},
+                message_id=email.message_id)
 
 
 def flush(gateway: Gateway, store: Store) -> None:
@@ -111,7 +143,7 @@ def _send(gateway: Gateway, store: Store, row, payload: dict):
     """Makes the Arcade call. Returns the sent id and what to record about it, committed with "sent"."""
     kind, dinner_id, recipient = payload["kind"], payload.get("dinner_id"), row["recipient"]
     if kind == "reply":
-        return gateway.reply(row["message_id"], payload["body"]).message_id, _nothing
+        return gateway.reply(row["message_id"], payload["body"], cc=payload.get("cc")).message_id, _nothing
     if kind == "host_notice":
         return gateway.reply(payload["reply_to"], payload["body"]).message_id, _nothing
     # Calendar rows read the event id when they're sent: it may have been created after they were queued.
@@ -135,10 +167,28 @@ def _send(gateway: Gateway, store: Store, row, payload: dict):
             payload["place"], payload["description"], recipient,
         )
         return event_id, lambda store: store.update_dinner(dinner_id, calendar_event_id=event_id)
+    if kind == "group_start":
+        sent = gateway.send(recipient, payload["subject"], payload["body"], cc=payload["cc"])
+        return sent.message_id, lambda store: store.update_dinner(dinner_id, group_thread_id=sent.thread_id)
+    if kind == "welcome":
+        return _post_in_group(gateway, store, dinner_id, payload["body"], payload["members"]).message_id, _nothing
     if kind == "invite":
         sent = gateway.send(recipient, payload["subject"], payload["body"])
         return sent.message_id, lambda store: store.update_guest(dinner_id, recipient, guest_thread_id=sent.thread_id)
     raise ValueError(f"unknown outbox row kind {kind!r}")
+
+
+def _post_in_group(gateway: Gateway, store: Store, dinner_id: int, body: str, members: list[str]) -> Sent:
+    """Butler's own post in the Group thread (D10): a reply to the newest post from a member, to its sender with cc
+    to every other member. Until a member has posted, a reply-all to Butler's newest post, which is addressed to
+    the Host: replying to its own email "to the sender" would address Butler itself (ticket 12)."""
+    dinner = store.dinner(dinner_id)
+    newest = store.newest_group_post(dinner["group_thread_id"], members)
+    if newest:
+        cc = [member for member in members if member != newest["sender"]]
+        return gateway.reply(newest["gmail_message_id"], body, cc=cc)
+    cc = [member for member in members if member != dinner["host_email"]]
+    return gateway.reply(store.last_group_post(dinner_id), body, cc=cc, to_sender_only=False)
 
 
 def _nothing(store: Store) -> None:

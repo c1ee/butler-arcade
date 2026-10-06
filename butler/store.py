@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS host_note (
 CREATE TABLE IF NOT EXISTS change (
     id INTEGER PRIMARY KEY,
     dinner_id INTEGER NOT NULL REFERENCES dinner(id),
-    kind TEXT NOT NULL,  -- approve / rsvp / time / place / note / group_start / cancel
+    kind TEXT NOT NULL,  -- approve / rsvp / time / place / note / group_start / group_join / cancel
     payload TEXT NOT NULL DEFAULT '{}'
 );
 -- Every email and calendar write Butler makes, queued in the same transaction as the state it reflects (D5).
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS trace (
     id INTEGER PRIMARY KEY,
     gmail_message_id TEXT NOT NULL,
     step INTEGER NOT NULL,
-    kind TEXT NOT NULL,  -- claude / tool
+    kind TEXT NOT NULL,  -- claude / tool / gate
     input TEXT NOT NULL,
     output TEXT NOT NULL
 );
@@ -197,6 +197,33 @@ class Store:
             (thread_id, sender),
         ).fetchone()
         return row["gmail_message_id"] if row else None
+
+    def members(self, dinner_id: int) -> list[str]:
+        """Who's in the Group thread: the Host, then Guests in the order they joined. Nobody ever leaves (D6)."""
+        joined = self.db.execute(
+            "SELECT email FROM guest WHERE dinner_id = ? AND group_joined_at IS NOT NULL ORDER BY group_joined_at, id",
+            (dinner_id,),
+        ).fetchall()
+        return [self.dinner(dinner_id)["host_email"], *(row["email"] for row in joined)]
+
+    def newest_group_post(self, thread_id: str, senders: list[str]) -> sqlite3.Row | None:
+        """The newest Group thread post Butler processed from any of `senders`: (gmail_message_id, sender).
+        An email in the thread sent only to Butler was routed as private and doesn't count."""
+        marks = ", ".join("?" for _ in senders)
+        return self.db.execute(
+            f"SELECT gmail_message_id, sender FROM message WHERE thread_id = ? AND channel = 'group_thread'"
+            f" AND sender IN ({marks}) ORDER BY rowid DESC LIMIT 1",
+            (thread_id, *senders),
+        ).fetchone()
+
+    def last_group_post(self, dinner_id: int) -> str | None:
+        """Butler's newest sent email in a Dinner's Group thread."""
+        row = self.db.execute(
+            "SELECT sent_message_id FROM outbox WHERE channel = 'group' AND status = 'sent'"
+            " AND sent_message_id IS NOT NULL AND json_extract(payload, '$.dinner_id') = ? ORDER BY id DESC LIMIT 1",
+            (dinner_id,),
+        ).fetchone()
+        return row["sent_message_id"] if row else None
 
     def find_thread(self, thread_id: str) -> tuple[sqlite3.Row, str, str | None] | None:
         """(Dinner, channel, the Guest's email for a Guest thread) for a thread Butler knows, any Dinner."""

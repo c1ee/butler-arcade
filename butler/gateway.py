@@ -2,11 +2,14 @@
 
 Facts from the live check (ticket 05) live here, not in callers:
 - Send to one `recipient` plus `cc`. A comma-separated recipient lands in spam or is dropped.
-- `ReplyToEmail` quotes the replied-to email and takes To from it.
+- `ReplyToEmail` quotes the replied-to email and takes To from it. On Butler's own email, `only_the_sender`
+  addresses Butler itself; `every_recipient` keeps its To and merges `cc`, dropping duplicates (ticket 12).
 - `UpdateEvent` returns a string, so re-read with `get_event` when the event is needed.
 - Calendar notifications: only creating the event and adding an attendee email anyone.
+- Gmail and Outlook paste the replied-to email in different formats (strip_quote).
 """
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import getaddresses, parseaddr
@@ -14,6 +17,22 @@ from email.utils import getaddresses, parseaddr
 from arcadepy import Arcade
 
 from butler.config import Settings
+
+
+# Where the sender's mail app starts pasting the email they're replying to (ticket 05):
+# Gmail and Apple Mail "On <date>, <name> wrote:" (sometimes wrapped onto two lines), Outlook's rule + "From:".
+QUOTE_STARTS = [
+    re.compile(r"^On\b[^\n]*(?:\n[^\n]*)?\bwrote:[ \t]*$", re.MULTILINE),
+    re.compile(r"^_{10,}[ \t]*\n(?:From|De|Von):", re.MULTILINE),
+    re.compile(r"^-{3,}\s*Original Message\s*-{3,}", re.MULTILINE | re.IGNORECASE),
+]
+
+
+def strip_quote(body: str) -> str:
+    """The text the sender wrote, without the quote their mail app pasted. Whole email if no quote is found."""
+    starts = [match.start() for pattern in QUOTE_STARTS if (match := pattern.search(body))]
+    written = body[: min(starts)].strip() if starts else body.strip()
+    return written or body.strip()
 
 
 class GatewayError(RuntimeError):

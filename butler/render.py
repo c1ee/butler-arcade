@@ -125,6 +125,37 @@ def coming(names: list[str], headcount: int) -> str:
     return f"Coming: {headcount} ({', '.join(names)}{f' + {extra} more' if extra else ''})"
 
 
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def _facts(dinner, coming_names: list[str], headcount: int) -> list[str]:
+    return [f"When: {when(_start(dinner))}", f"Where: {dinner['place']}", coming(coming_names, headcount)]
+
+
+def group_opener(dinner, coming_names: list[str], headcount: int) -> tuple[str, str]:
+    """(subject, body) of the email that starts the Group thread once enough Guests say yes (H3)."""
+    host = host_label(dinner)
+    lines = [
+        "Hi all,",
+        "",
+        f"Enough of you said yes, so here's one thread for {host} and everyone coming. Reply all to reach everyone.",
+        "",
+        *_facts(dinner, coming_names, headcount),
+        "",
+        'I\'ll stay quiet here unless you ask me something ("Butler, ..."). To change your RSVP, reply here or to '
+        "my invite.",
+    ]
+    return f"Group thread: {title(dinner)}, {short_when(_start(dinner))}", sign("\n".join(lines), dinner)
+
+
+def welcome(dinner, joiner_names: list[str], coming_names: list[str], headcount: int) -> str:
+    """The Group thread post that adds Guests who said yes after it started (H3). Current facts, no catch-up."""
+    lines = [f"Welcome, {_and(joiner_names)}! You're on the group thread now.", "",
+             *_facts(dinner, coming_names, headcount)]
+    return sign("\n".join(lines), dinner)
+
+
 def host_notice(guest, was: str, now: str, headcount: int) -> str:
     """The Host's private notice after a Guest's RSVP changes by email (G1–G3). Calendar answers don't get one (D13)."""
     who = f"{guest['name']} ({guest['email']})" if guest["name"] else guest["email"]

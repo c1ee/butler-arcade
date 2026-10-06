@@ -7,13 +7,13 @@ MAX_STEPS calls, and never chooses who receives the reply. Every call and tool r
 
 import json
 import logging
-import re
 from dataclasses import dataclass
 
 from butler import render, tools
 from butler.config import TIMEZONE
-from butler.gateway import Email, Gateway
+from butler.gateway import Email, Gateway, strip_quote
 from butler.render import ZONE
+from butler.router import private, readers
 from butler.store import LIVE, status
 from butler.tools import Ctx, ToolError
 
@@ -23,27 +23,18 @@ MAX_STEPS = 6  # the last call gets no tools, so it has to answer
 HISTORY = 10
 MAX_TOKENS = 2048
 
-# Where the sender's mail app starts pasting the email they're replying to (ticket 05):
-# Gmail and Apple Mail "On <date>, <name> wrote:" (sometimes wrapped onto two lines), Outlook's rule + "From:".
-QUOTE_STARTS = [
-    re.compile(r"^On\b[^\n]*(?:\n[^\n]*)?\bwrote:[ \t]*$", re.MULTILINE),
-    re.compile(r"^_{10,}[ \t]*\n(?:From|De|Von):", re.MULTILINE),
-    re.compile(r"^-{3,}\s*Original Message\s*-{3,}", re.MULTILINE | re.IGNORECASE),
-]
 
-
-def strip_quote(body: str) -> str:
-    """The text the sender wrote, without the quote their mail app pasted. Whole email if no quote is found."""
-    starts = [match.start() for pattern in QUOTE_STARTS if (match := pattern.search(body))]
-    written = body[: min(starts)].strip() if starts else body.strip()
-    return written or body.strip()
-
-
-def history(gateway: Gateway, email: Email) -> list[Email]:
-    """Up to HISTORY emails before this one in its Gmail thread, oldest first, Butler's own included."""
+def history(gateway: Gateway, email: Email, channel: str, butler_email: str) -> list[Email]:
+    """Up to HISTORY emails before this one in its Gmail thread, oldest first, Butler's own included, and only those
+    the reply's readers may see. The Group thread also holds private emails (a plain Reply to Butler and Butler's
+    answer): a post to the group sees none of them; a private email sees its sender's own, never anyone else's."""
     thread = gateway.get_thread(email.thread_id)
     ids = [message.message_id for message in thread]
     earlier = thread[: ids.index(email.message_id)] if email.message_id in ids else thread
+    if channel == "group_thread":
+        earlier = [e for e in earlier if not private(e, butler_email)]
+    else:
+        earlier = [e for e in earlier if not private(e, butler_email) or email.sender in readers(e, butler_email)]
     return earlier[-HISTORY:]
 
 
@@ -101,6 +92,21 @@ suggest they ask {host}.
 - Don't call get_event or get_my_rsvp for what's already below; record_rsvp returns their updated RSVP."""
 
 
+GROUP = """This is the group email thread: {host} and every Guest who said yes read your reply, so write it for \
+all of them. You only reply when it's needed: someone asked you something, {host} asked you to do something, or \
+someone changed their RSVP.
+
+- Answer only from the dinner facts below. Never say who declined or hasn't answered. If the answer isn't there, \
+say you don't know and suggest asking {host}.
+- When a Guest clearly changes their own RSVP here (can't come anymore, coming after all, bringing more or fewer \
+people), record it with record_rsvp. Dietary needs and notes for {host} don't belong in the group: suggest they \
+email you privately, without repeating them.
+- Only {host} can change the dinner (time, place, who's invited). If a Guest asks you to, say so kindly.
+- If {host} asks you to tell everyone something, write it as a short note to the group.
+- If {host} wants to cancel, ask them to confirm with you privately. Nothing is canceled from here.
+- One to three sentences. Don't recap details nobody asked about."""
+
+
 def answer(claude, model: str, ctx: Ctx, turn: Turn) -> str:
     store, dinner_id = ctx.store, ctx.dinner_id
     dinner = store.dinner(dinner_id)
@@ -112,14 +118,18 @@ def answer(claude, model: str, ctx: Ctx, turn: Turn) -> str:
         facts = (f"The dinner (everything Guests may know):\n{json.dumps(tools.public_facts(store, dinner_id), indent=1)}"
                  f"\n\nTheir RSVP so far:\n{json.dumps(tools.own_rsvp(store, dinner_id, ctx.sender), indent=1)}")
         system = f"{BUTLER}\n\n{GUEST.format(host=render.host_label(dinner))}"
+    elif phase in LIVE and turn.channel == "group_thread":
+        facts = f"The dinner (everything Guests may know):\n{json.dumps(tools.public_facts(store, dinner_id), indent=1)}"
+        if turn.role == "guest":
+            rsvp = tools.own_rsvp(store, dinner_id, ctx.sender, group=True)
+            facts += f"\n\nThe sender's RSVP so far:\n{json.dumps(rsvp, indent=1)}"
+        system = f"{BUTLER}\n\n{GROUP.format(host=render.host_label(dinner))}"
     else:
         raise NotImplementedError(f"no tool loop yet for {turn.role} in {turn.channel} ({phase})")
     guest = store.guest(dinner_id, ctx.sender)
     attending = guest is not None and status(guest) == "attending"
-    # TODO(ticket 12): get_group_thread
-    names = [name for name in tools.toolset(turn.role, turn.channel, phase, attending) if name in tools.TOOLS]
-    return run(claude, model, system, prompt(ctx, turn, facts), [tools.TOOLS[name] for name in names], ctx,
-               turn.email.message_id)
+    toolset = tools.registered(tools.toolset(turn.role, turn.channel, phase, attending), turn.channel)
+    return run(claude, model, system, prompt(ctx, turn, facts), toolset, ctx, turn.email.message_id)
 
 
 def speaker(address: str, ctx: Ctx) -> str:

@@ -6,6 +6,7 @@ Calendar answers email nobody: no Host notice, nothing to the Guest. Plus-ones s
 """
 
 import logging
+from datetime import datetime
 
 from butler import effects
 from butler.config import Settings
@@ -15,18 +16,19 @@ from butler.store import Store, status
 log = logging.getLogger("butler")
 
 
-def sync(gateway: Gateway, store: Store, settings: Settings) -> None:
+def sync(gateway: Gateway, store: Store, settings: Settings, now: datetime) -> None:
     if store.pending():
         return  # a queued attendee add or removal would read as a calendar answer; flush first, sync next poll
     for dinner in store.live_dinners():
         if dinner["calendar_event_id"]:
             event = gateway.get_event(dinner["calendar_event_id"])
             with store.transaction():
-                apply(store, settings, dinner["id"], event)
+                apply(store, settings, dinner["id"], event, now)
 
 
-def apply(store: Store, settings: Settings, dinner_id: int, event: Event) -> None:
-    """Snapshot every on-calendar Guest's answer. A Guest moving between Declined and Attending is a Change."""
+def apply(store: Store, settings: Settings, dinner_id: int, event: Event, now: datetime) -> None:
+    """Snapshot every on-calendar Guest's answer. A Guest moving between Declined and Attending is a Change, and
+    may start the Group thread or join it (never leave it)."""
     answers = {attendee.email: attendee.response_status for attendee in event.attendees}
     moved = []
     for guest in store.guests(dinner_id):
@@ -34,10 +36,11 @@ def apply(store: Store, settings: Settings, dinner_id: int, event: Event) -> Non
         if not guest["on_calendar"] or answer is None or answer == guest["calendar_answer"]:
             continue  # off the calendar per Butler, or not there yet, or nothing new
         store.update_guest(dinner_id, guest["email"], calendar_answer=answer)
-        was, now = status(guest), status(store.guest(dinner_id, guest["email"]))
-        log.info("calendar: %s answered %s (%s → %s)", guest["email"], answer, was, now)
-        if was != now:
-            moved.append({"guest": guest["email"], "was": was, "now": now})
+        was, became = status(guest), status(store.guest(dinner_id, guest["email"]))
+        log.info("calendar: %s answered %s (%s → %s)", guest["email"], answer, was, became)
+        if was != became:
+            moved.append({"guest": guest["email"], "was": was, "now": became})
     if moved:
         change_id = store.add_change(dinner_id, "rsvp", {"via": "calendar", "moved": moved})
         effects.update_description(store, settings, dinner_id, change_id)
+        effects.join_group(store, settings, dinner_id, now)

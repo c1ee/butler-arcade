@@ -14,8 +14,8 @@ B = "b@example.com"
 SETTINGS = Settings(arcade_api_key="", anthropic_api_key="", butler_user_id="Butler@example.com", host_email=HOST)
 
 
-def email(sender, thread_id="new-thread", subject="hi"):
-    return Email("m1", thread_id, sender, (BUTLER,), (), subject, "body", datetime.now(UTC))
+def email(sender, thread_id="new-thread", subject="hi", cc=()):
+    return Email("m1", thread_id, sender, (BUTLER,), cc, subject, "body", datetime.now(UTC))
 
 
 @pytest.fixture
@@ -33,8 +33,11 @@ def store():
     [
         (email(HOST, "host-thread"), Route(1, "host_thread", "host")),
         (email(A, "a-thread"), Route(1, "guest_thread", "guest")),
-        (email(B, "group-thread"), Route(1, "group_thread", "guest")),
-        (email(HOST, "group-thread"), Route(1, "group_thread", "host")),
+        (email(B, "group-thread", cc=(HOST, A)), Route(1, "group_thread", "guest")),
+        (email(HOST, "group-thread", cc=(A,)), Route(1, "group_thread", "host")),
+        # A plain Reply in the Group thread reaches only Butler: private, answered privately.
+        (email(B, "group-thread"), Route(1, "guest_thread", "guest")),
+        (email(HOST, "group-thread"), Route(1, "host_thread", "host")),
         # New threads route by sender: a fresh email, or a reply to Google's calendar invite.
         (email(HOST), Route(1, "host_thread", "host")),
         (email("A@Example.com", subject="Re: Invitation: Dinner at Host's"), Route(1, "guest_thread", "guest")),

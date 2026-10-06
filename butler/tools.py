@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field, ValidationError
 
 from butler import effects, render
 from butler.config import Settings
+from butler.gateway import Gateway, strip_quote
+from butler.router import private
 from butler.store import LIVE, Store, headcount, status
 
 SETUP = ("draft", "draft_shown")  # phases before the Host approves
@@ -53,6 +55,7 @@ class Ctx:
     dinner_id: int
     sender: str
     now: datetime
+    gateway: Gateway | None = None  # get_group_thread reads Gmail
 
 
 class ToolError(Exception):
@@ -225,15 +228,11 @@ def public_facts(store: Store, dinner_id: int) -> dict:
     }
 
 
-def own_rsvp(store: Store, dinner_id: int, email: str) -> dict:
-    """The sender's own RSVP (own scope)."""
+def own_rsvp(store: Store, dinner_id: int, email: str, group: bool = False) -> dict:
+    """The sender's own RSVP (own scope). In the Group thread everyone reads the reply, so no Dietary needs or note."""
     guest = store.guest(dinner_id, email)
-    return {
-        "status": status(guest),
-        "plus_ones": guest["plus_ones"],
-        "dietary_needs": guest["dietary_needs"],
-        "note_for_host": guest["guest_note"],
-    }
+    rsvp = {"status": status(guest), "plus_ones": guest["plus_ones"]}
+    return rsvp if group else rsvp | {"dietary_needs": guest["dietary_needs"], "note_for_host": guest["guest_note"]}
 
 
 def get_event(ctx: Ctx, args: NoArgs) -> dict:
@@ -244,13 +243,16 @@ def get_my_rsvp(ctx: Ctx, args: NoArgs) -> dict:
     return own_rsvp(ctx.store, ctx.dinner_id, ctx.sender)
 
 
-class RecordRsvp(BaseModel):
+class GroupRsvp(BaseModel):
     attending: bool = Field(description="True if they're coming, false if not. Only a clear yes or no.")
     plus_ones: int | None = Field(
         None, ge=0, le=20,
         description="How many extra people they're bringing besides themselves ('me and my partner' = 1, "
         "'3 of us' = 2). Omit if they didn't say.",
     )
+
+
+class RecordRsvp(GroupRsvp):
     dietary_needs: str | None = Field(
         None, description="Everything they or their Plus-ones can't or won't eat, as it stands now (replaces what's "
         "recorded, so keep what still holds). Empty string clears it. Omit if they didn't mention any.",
@@ -294,6 +296,30 @@ def record_rsvp(ctx: Ctx, args: RecordRsvp) -> dict:
     return result
 
 
+def record_rsvp_in_group(ctx: Ctx, args: GroupRsvp) -> dict:
+    result = record_rsvp(ctx, RecordRsvp(attending=args.attending, plus_ones=args.plus_ones))
+    return result | {"recorded": own_rsvp(ctx.store, ctx.dinner_id, ctx.sender, group=True)}
+
+
+# Group thread (H3, G5)
+
+GROUP_POSTS = 10
+
+
+def get_group_thread(ctx: Ctx, args: NoArgs) -> dict:
+    """The Group thread's latest posts (group scope), without its private emails (one person and Butler)."""
+    store, dinner_id = ctx.store, ctx.dinner_id
+    dinner = store.dinner(dinner_id)
+    if not dinner["group_thread_id"]:
+        return {"group_thread": f"Not started: Butler starts it once {dinner['group_threshold']} Guests say yes."}
+    butler = ctx.settings.butler_email
+    names = {butler: "Butler", dinner["host_email"]: f"{render.host_label(dinner)} (Host)"}
+    names |= {guest["email"]: render.guest_label(guest) for guest in store.guests(dinner_id)}
+    posts = [email for email in ctx.gateway.get_thread(dinner["group_thread_id"]) if not private(email, butler)]
+    return {"posts": [{"from": names.get(email.sender, email.sender), "text": strip_quote(email.body)}
+                      for email in posts[-GROUP_POSTS:]]}
+
+
 TOOLS = {
     tool.name: tool
     for tool in [
@@ -326,5 +352,33 @@ TOOLS = {
             RecordRsvp,
             record_rsvp,
         ),
+        Tool(
+            "get_group_thread",
+            "The latest posts in the group email thread among the Host and the Guests who said yes.",
+            NoArgs,
+            get_group_thread,
+        ),
     ]
 }
+
+# Everyone in the Group thread reads Butler's reply, so its RSVP tools neither show nor take Dietary needs or notes.
+GROUP_TOOLS = {
+    tool.name: tool
+    for tool in [
+        Tool("get_my_rsvp", "The sender's own RSVP: status and Plus-ones.", NoArgs,
+             lambda ctx, args: own_rsvp(ctx.store, ctx.dinner_id, ctx.sender, group=True)),
+        Tool(
+            "record_rsvp",
+            "Record the sender's RSVP change, with Plus-ones if they gave them. Only for a clear yes or no. Always "
+            "writes for the sender, never anyone else.",
+            GroupRsvp,
+            record_rsvp_in_group,
+        ),
+    ]
+}
+
+
+def registered(names: list[str], channel: str) -> list[Tool]:
+    """The tools behind toolset() names, skipping names not built yet."""
+    pool = TOOLS | GROUP_TOOLS if channel == "group_thread" else TOOLS
+    return [pool[name] for name in names if name in pool]

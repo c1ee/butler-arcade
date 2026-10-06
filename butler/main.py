@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 import anthropic
 
-from butler import agent, config, effects, render, sync, tools
+from butler import agent, config, effects, gate, render, sync, tools
 from butler.config import Settings
 from butler.gateway import Email, Gateway
 from butler.router import Route, route
@@ -43,13 +43,22 @@ def handle(email: Email, r: Route, gateway: Gateway, claude, store: Store, setti
     sending happens after (D5). A failure before the commit leaves the email to be retried on the next poll."""
     dinner = store.dinner(r.dinner_id) if r.dinner_id else None
     if not converses(r, dinner):
-        # TODO(tickets 12–13): the Group thread, and the Host thread after approval.
+        # TODO(ticket 13): the Host thread after approval.
         with store.transaction():
             store.mark_processed(email, r, now)
         return
 
-    earlier = agent.history(gateway, email)
+    earlier = agent.history(gateway, email, r.channel, settings.butler_email)
+    gated = gate.should_speak(claude, settings, store, r.dinner_id, email, r.role, earlier) \
+        if r.channel == "group_thread" else None
     with store.transaction():
+        if gated:
+            decision, shown = gated
+            store.add_trace(email.message_id, 0, "gate", shown, decision.model_dump())
+            if not decision.speak:
+                store.mark_processed(email, r, now)
+                log.info("silent in the Group thread: %s", decision.reason)
+                return
         if dinner is None:  # the Host's first email starts a draft (H1)
             dinner_id = store.create_dinner(host_email=email.sender, host_name=email.sender_name or None,
                                             host_thread_id=email.thread_id)
@@ -58,11 +67,16 @@ def handle(email: Email, r: Route, gateway: Gateway, claude, store: Store, setti
             if email.sender_name:
                 store.update_guest(r.dinner_id, email.sender, name=email.sender_name)
             before = store.guest(r.dinner_id, email.sender)
-        ctx = tools.Ctx(store, settings, r.dinner_id, email.sender, now)
+        ctx = tools.Ctx(store, settings, r.dinner_id, email.sender, now, gateway)
         body = agent.answer(claude, settings.model, ctx, agent.Turn(email, r.role, r.channel, earlier))
         if r.role == "guest":
             effects.rsvp(store, settings, r.dinner_id, before)
-            effects.reply(store, email, "guest", render.sign(body, store.dinner(r.dinner_id)))
+            effects.join_group(store, settings, r.dinner_id, now)
+        dinner = store.dinner(r.dinner_id)
+        if r.channel == "group_thread":
+            effects.group_reply(store, email, r.dinner_id, render.sign(body, dinner))
+        elif r.role == "guest":
+            effects.reply(store, email, "guest", render.sign(body, dinner))
         else:
             if preview := tools.show_draft(store, r.dinner_id):
                 body = f"{body}\n\n{preview}"
@@ -73,19 +87,22 @@ def handle(email: Email, r: Route, gateway: Gateway, claude, store: Store, setti
 
 
 def converses(r: Route, dinner) -> bool:
-    """Whether this email goes to the tool loop: the Host's draft conversation, or a Guest in their own thread."""
+    """Whether this email goes to the tool loop: the Host's draft conversation, a Guest in their own thread, or
+    anyone in the Group thread (the should_speak gate decides there)."""
     if r.skipped:
         return False
     if r.channel == "host_thread":
         return dinner is None or dinner["status"] in tools.SETUP
-    return r.channel == "guest_thread" and r.role == "guest" and dinner["status"] in LIVE
+    if dinner["status"] not in LIVE:
+        return False
+    return r.channel == "group_thread" or r.channel == "guest_thread" and r.role == "guest"
 
 
 def tick(gateway: Gateway, store: Store, settings: Settings, now: datetime) -> None:
     with store.transaction():
         for dinner_id in store.close_finished(now):
             log.info("Dinner %s closed: an hour past its start", dinner_id)
-    sync.sync(gateway, store, settings)
+    sync.sync(gateway, store, settings, now)
     effects.flush(gateway, store)
 
 

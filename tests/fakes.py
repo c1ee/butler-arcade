@@ -24,9 +24,9 @@ class FakeGateway:
         self.invited: list[tuple[str, str]] = []  # (event id, email) for every calendar invite Google sent
         self._ids = count(1)
 
-    def receive(self, sender, body, thread_id=None, subject="dinner", sender_name="") -> Email:
+    def receive(self, sender, body, thread_id=None, subject="dinner", sender_name="", cc=()) -> Email:
         n = next(self._ids)
-        email = Email(f"m{n}", thread_id or f"t{n}", sender, (BUTLER,), (), subject, body, NOW, sender_name)
+        email = Email(f"m{n}", thread_id or f"t{n}", sender, (BUTLER,), tuple(cc), subject, body, NOW, sender_name)
         self.inbox.append(email)
         self.threads.setdefault(email.thread_id, []).append(email)
         return email
@@ -37,19 +37,27 @@ class FakeGateway:
     def get_thread(self, thread_id):
         return list(self.threads.get(thread_id, []))
 
-    def _deliver(self, thread_id, to, cc, subject, body) -> Sent:
+    def _deliver(self, thread_id, to: list, cc: list, subject, body) -> Sent:
         message_id = f"m{next(self._ids)}"
-        self.sent.append({"to": to, "cc": cc, "subject": subject, "body": body, "thread_id": thread_id})
-        email = Email(message_id, thread_id, BUTLER, (to,), tuple(cc), subject, body, NOW, "Butler")
+        self.sent.append({"to": ", ".join(to), "cc": cc, "subject": subject, "body": body, "thread_id": thread_id})
+        email = Email(message_id, thread_id, BUTLER, tuple(to), tuple(cc), subject, body, NOW, "Butler")
         self.threads.setdefault(thread_id, []).append(email)
         return Sent(message_id, thread_id)
 
     def send(self, to, subject, body, cc=None):
-        return self._deliver(f"t{next(self._ids)}", to, cc or [], subject, body)
+        return self._deliver(f"t{next(self._ids)}", [to], list(cc or []), subject, body)
 
     def reply(self, message_id, body, cc=None, to_sender_only=True):
+        """Like Gmail (tickets 05, 12): to the replied-to email's sender, Butler itself if it's Butler's own; or for
+        every_recipient, its sender and To minus Butler, with its Cc merged in. Cc drops Butler and anyone in To."""
         original = next(e for thread in self.threads.values() for e in thread if e.message_id == message_id)
-        return self._deliver(original.thread_id, original.sender, cc or [], "Re: " + original.subject, body)
+        if to_sender_only:
+            to, merged = [original.sender], list(cc or [])
+        else:
+            to = [a for a in dict.fromkeys((original.sender, *original.to)) if a != BUTLER]
+            merged = [*original.cc, *(cc or [])]
+        cc = [address for address in dict.fromkeys(merged) if address != BUTLER and address not in to]
+        return self._deliver(original.thread_id, to, cc, "Re: " + original.subject, body)
 
     def create_event(self, title, start, end, place, description, host):
         event_id = f"e{next(self._ids)}"

@@ -161,6 +161,7 @@ def test_a_guest_email_before_approval_is_not_answered():
 
 def test_calendar_answers_move_headcount_silently(setup):
     store, gateway, _ = setup
+    store.update_dinner(1, group_threshold=5)  # no Group thread here: tests/test_group.py
     on_calendar(store, gateway, A, "needsAction")
     on_calendar(store, gateway, B, "needsAction")
     answers = event(store, gateway)["answers"]
