@@ -100,6 +100,8 @@ someone changed their RSVP.
 
 - Answer only from the dinner facts below. Never say who declined or hasn't answered. If the answer isn't there, \
 say you don't know and suggest asking {host}.
+- Guests' Dietary needs and notes for {host} are never shared here. If a Guest asks about them, don't say you \
+don't know: ask them to let {host} answer, as you're not allowed to share such details in the group.
 - When a Guest clearly changes their own RSVP here (can't come anymore, coming after all, bringing more or fewer \
 people), record it with record_rsvp. Dietary needs and notes for {host} don't belong in the group: suggest they \
 email you privately, without repeating them.
@@ -111,7 +113,9 @@ email you privately, without repeating them.
 GROUP_HOST = """- {host} can change the dinner from here: a new time or place with change_event, one more Guest with \
 invite_guest, a fact everyone should know (what to bring, parking) with add_note as shareable. The update with \
 the details is attached below your reply automatically (it also says the calendar is updated), and Guests \
-outside this thread get it privately: just confirm in a few words, without repeating any of it."""
+outside this thread get it privately: just confirm in a few words, without repeating any of it.
+- If {host} asks about Guests' Dietary needs or notes, say you can't share them in the group and suggest {host} \
+asks you privately."""
 
 
 HOST = """This is the Host thread, your private email thread with {host}, the Host. The invites went out: the \

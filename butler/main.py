@@ -133,7 +133,7 @@ def main() -> None:
     store = Store(settings.db_path)
     gateway = Gateway(settings)
     claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    log.info("Butler %s polling every %ss (Host %s)", settings.butler_email, config.POLL_SECONDS, settings.host_email)
+    log.info("Butler %s polling every %ss (Host %s)", settings.butler_email, settings.poll_seconds, settings.host_email)
     try:
         while True:
             now = datetime.now(UTC)
@@ -144,7 +144,7 @@ def main() -> None:
                 log.exception("poll failed; retrying next poll")
             if args.once:
                 break
-            time.sleep(config.POLL_SECONDS)
+            time.sleep(settings.poll_seconds)
     except KeyboardInterrupt:
         log.info("stopped")
 

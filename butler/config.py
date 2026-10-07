@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # System-only: every Dinner time is read and written in this zone. Butler never asks.
 TIMEZONE = "America/Los_Angeles"
-POLL_SECONDS = 30
+DEFAULT_POLL_SECONDS = 30
 DEFAULT_MODEL = "claude-sonnet-5-5"
 
 # One consent covers every catalog tool Butler calls (ticket 05).
@@ -27,6 +27,7 @@ class Settings:
     butler_user_id: str  # Butler's Gmail address, also its Arcade user id (D1)
     host_email: str
     model: str = DEFAULT_MODEL
+    poll_seconds: int = DEFAULT_POLL_SECONDS
     db_path: Path = ROOT / "butler.db"
 
     @property
@@ -56,4 +57,5 @@ def load() -> Settings:
         butler_user_id=os.environ["BUTLER_USER_ID"],
         host_email=os.environ["HOST_EMAIL"].lower(),
         model=os.environ.get("MODEL") or DEFAULT_MODEL,
+        poll_seconds=int(os.environ.get("POLL_SECONDS") or DEFAULT_POLL_SECONDS),
     )
