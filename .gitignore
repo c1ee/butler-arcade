@@ -5,3 +5,4 @@ __pycache__/
 *.db
 .DS_Store
 evals/traces/
+.scratch/gettogether/spike/log.jsonl

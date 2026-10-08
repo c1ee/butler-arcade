@@ -1,0 +1,58 @@
+21:11:58 Butler arrialee7@gmail.com polling every 10s (Host campingchra@gmail.com)
+21:12:09 1a1148fb92f11b01 from campingchra@gmail.com 'Dinner Saturday' → new Dinner, host_thread, host
+21:12:13   update_draft {"start": "2026-10-17T19:00", "place": "412 Alder St, Oakland", "add_guests": ["augustclee7@gmail.com", "xhakaout32@gmail.com", "guest.c.gettogether@outlook.com"], "add_notes": [{"text": "Street parking only", "shareable": true}]} → ok
+21:12:15 replied to campingchra@gmail.com (Dinner 1 now draft_shown)
+21:12:16 sent reply to campingchra@gmail.com
+21:12:37 1a114901ecd9008c from campingchra@gmail.com 'Re: Dinner Saturday' → Dinner 1, host_thread, host
+21:12:39   send_invites {} → ok
+21:12:41 replied to campingchra@gmail.com (Dinner 1 now active)
+21:12:41 sent create_event to campingchra@gmail.com
+21:12:42 sent invite to augustclee7@gmail.com
+21:12:43 sent invite to xhakaout32@gmail.com
+21:12:43 sent invite to guest.c.gettogether@outlook.com
+21:12:44 sent reply to campingchra@gmail.com
+21:13:06 1a11490884e319a0 from augustclee7@gmail.com "Re: You're invited: Dinner with Mr, Sat Oct 17" → Dinner 1, guest_thread, guest
+21:13:08   record_rsvp {"attending": true, "plus_ones": 1, "dietary_needs": "Partner is vegetarian"} → ok
+21:13:09 replied to augustclee7@gmail.com (Dinner 1 now active)
+21:13:10 sent add_attendee to augustclee7@gmail.com
+21:13:11 sent update_description to description
+21:13:14 sent host_notice to campingchra@gmail.com
+21:13:15 sent reply to augustclee7@gmail.com
+21:13:37 1a1149114a572aaf from xhakaout32@gmail.com "Re: You're invited: Dinner with Mr, Sat Oct 17" → Dinner 1, guest_thread, guest
+21:13:39   record_rsvp {"attending": true} → ok
+21:13:40 replied to xhakaout32@gmail.com (Dinner 1 now active)
+21:13:42 sent add_attendee to xhakaout32@gmail.com
+21:13:43 sent update_description to description
+21:13:44 sent host_notice to campingchra@gmail.com
+21:13:44 sent group_start to campingchra@gmail.com
+21:13:45 sent reply to xhakaout32@gmail.com
+21:14:18 1a11491908812d12 from xhakaout32@gmail.com 'Re: Everyone coming: Dinner with Mr, Sat Oct 17' → Dinner 1, group_thread, guest
+21:14:21 silent in the Group thread: Excited chatter with no RSVP change, question, or request to Butler.
+21:14:32 1a11491edac2859f from xhakaout32@gmail.com 'Re: Everyone coming: Dinner with Mr, Sat Oct 17' → Dinner 1, group_thread, guest
+21:14:37 replied to xhakaout32@gmail.com (Dinner 1 now active)
+21:14:37 sent reply to xhakaout32@gmail.com
+21:15:00 1a1149256d859153 from campingchra@gmail.com 'Re: Dinner Saturday' → Dinner 1, host_thread, host
+21:15:02   change_event {"start": "2026-10-17T20:00"} → ok
+21:15:03 replied to campingchra@gmail.com (Dinner 1 now active)
+21:15:04 sent update_event to event
+21:15:05 sent change_notice to group
+21:15:06 sent change_notice to guest.c.gettogether@outlook.com
+21:15:08 sent reply to campingchra@gmail.com
+21:19:46 1a11496ad725fd9c from guest.c.gettogether@outlook.com "Re: You're invited: Dinner with Mr, Sat Oct 17" → Dinner 1, guest_thread, guest
+21:19:48   record_rsvp {"attending": true} → ok
+21:19:49 replied to guest.c.gettogether@outlook.com (Dinner 1 now active)
+21:19:51 sent add_attendee to guest.c.gettogether@outlook.com
+21:19:51 sent update_description to description
+21:19:52 sent host_notice to campingchra@gmail.com
+21:19:53 sent welcome to group
+21:19:54 sent reply to guest.c.gettogether@outlook.com
+21:20:17 1a114971e34389ae from campingchra@gmail.com 'Re: Dinner Saturday' → Dinner 1, host_thread, host
+21:20:19   ask_cancel_confirmation {} → ok
+21:20:21 replied to campingchra@gmail.com (Dinner 1 now confirming_cancel)
+21:20:22 sent reply to campingchra@gmail.com
+21:20:44 1a114977d3e8ebc8 from campingchra@gmail.com 'Re: Dinner Saturday' → Dinner 1, host_thread, host
+21:20:46   cancel_dinner {} → ok
+21:20:47 replied to campingchra@gmail.com (Dinner 1 now canceled)
+21:20:48 sent delete_event to event
+21:20:49 sent cancel_notice to group
+21:20:50 sent reply to campingchra@gmail.com

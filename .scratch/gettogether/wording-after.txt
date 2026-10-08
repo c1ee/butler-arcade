@@ -1,0 +1,210 @@
+
+======================================================================
+1. Draft preview (attached below Claude's reply)  →  Host, Host thread
+----------------------------------------------------------------------
+Here's the draft:
+
+When: Saturday, October 24 at 7 PM (on the calendar until 10 PM)
+Where: 482 Linden Ave
+Guests: augustclee7@gmail.com, xhakaout32@gmail.com
+Your notes:
+- Street parking only (shareable: in the invite and on the calendar)
+- It's a surprise birthday for Xhaka (private: only you see it)
+Group thread: I'll start one with you and everyone coming once 2 guests say yes.
+
+Each guest gets this invite on their own, so nobody sees who else is invited:
+
+------------------------------
+Subject: You're invited: Dinner with Chris, Sat Oct 24
+
+Hi,
+
+I'm Butler, helping Chris organize a dinner, and you're invited!
+
+When: Saturday, October 24 at 7 PM
+Where: 482 Linden Ave
+
+From Chris:
+- Street parking only
+
+Can you make it? Reply with yes or no. If yes, I'll add you to the calendar invite.
+Bring whoever you like, just tell me how many and I'll let Chris know. Any dietary needs? Mention them too; only Chris will see them.
+
+Questions, or plans change? Just reply to this email.
+
+— Butler, on behalf of Chris
+------------------------------
+
+Reply "send it" and I'll send the invites and put the dinner on your calendar. Or tell me what to change.
+
+======================================================================
+2. Invite  →  each Guest, own thread
+Subject: You're invited: Dinner with Chris, Sat Oct 24
+----------------------------------------------------------------------
+Hi,
+
+I'm Butler, helping Chris organize a dinner, and you're invited!
+
+When: Saturday, October 24 at 7 PM
+Where: 482 Linden Ave
+
+From Chris:
+- Street parking only
+
+Can you make it? Reply with yes or no. If yes, I'll add you to the calendar invite.
+Bring whoever you like, just tell me how many and I'll let Chris know. Any dietary needs? Mention them too; only Chris will see them.
+
+Questions, or plans change? Just reply to this email.
+
+— Butler, on behalf of Chris
+
+======================================================================
+3. Host notice: yes  →  Host, Host thread
+----------------------------------------------------------------------
+August Lee (augustclee7@gmail.com) is coming!
+Bringing: 1 more
+Dietary needs: Partner is vegetarian
+Note: Running 15 min late
+
+Headcount is now 3.
+
+— Butler
+
+======================================================================
+3b. Host notice: no  →  Host, Host thread
+----------------------------------------------------------------------
+Xhaka Out (xhakaout32@gmail.com) can't make it.
+
+Headcount is now 2.
+
+— Butler
+
+======================================================================
+3c. Host notice: changed details  →  Host, Host thread
+----------------------------------------------------------------------
+Xhaka Out (xhakaout32@gmail.com) updated their RSVP.
+Bringing: no one
+
+Headcount is now 3.
+
+— Butler
+
+======================================================================
+4. Group thread opener  →  To Host, cc Attending
+Subject: Everyone coming: Dinner with Chris, Sat Oct 24
+----------------------------------------------------------------------
+Hi all,
+
+Here's one thread for Chris and everyone coming. Reply all to reach everyone.
+
+When: Saturday, October 24 at 7 PM
+Where: 482 Linden Ave
+Coming: 3 (August, Xhaka + 1 more)
+
+I'll stay quiet here unless you ask me something ("Butler, ..."). To change your RSVP, reply here or to my invite.
+
+— Butler, on behalf of Chris
+
+======================================================================
+5. Welcome (late yes)  →  Group thread
+----------------------------------------------------------------------
+Welcome, Guest C! You're on the group thread now. Reply all to reach everyone.
+
+When: Saturday, October 24 at 7 PM
+Where: 482 Linden Ave
+Coming: 4 (August, Xhaka, Guest C + 1 more)
+
+— Butler, on behalf of Chris
+
+======================================================================
+6a. Change notice: group  →  Group thread
+----------------------------------------------------------------------
+Hi all,
+
+An update on Chris's dinner:
+
+When: Saturday, October 24 at 8 PM (was 7 PM)
+Where: 482 Linden Ave
+
+From Chris:
+- Please bring a bottle of wine
+
+The calendar invite is updated.
+
+— Butler, on behalf of Chris
+
+======================================================================
+6b. Change notice: Attending outside group  →  Guest, own thread
+----------------------------------------------------------------------
+Hi,
+
+An update on Chris's dinner:
+
+When: Saturday, October 24 at 8 PM (was 7 PM)
+Where: 482 Linden Ave
+
+From Chris:
+- Please bring a bottle of wine
+
+The calendar invite is updated.
+
+— Butler, on behalf of Chris
+
+======================================================================
+6c. Change notice: Invited (no answer yet)  →  Guest, own thread
+----------------------------------------------------------------------
+Hi,
+
+An update on Chris's dinner:
+
+When: Saturday, October 24 at 8 PM (was 7 PM)
+Where: 482 Linden Ave
+
+From Chris:
+- Please bring a bottle of wine
+
+Can you make it? Reply with yes or no. If yes, I'll add you to the calendar invite.
+
+— Butler, on behalf of Chris
+
+======================================================================
+6d. Change attached below Claude's group reply  →  Group thread (Host asked there)
+----------------------------------------------------------------------
+When: Saturday, October 24 at 8 PM (was 7 PM)
+Where: 482 Linden Ave
+
+From Chris:
+- Please bring a bottle of wine
+
+The calendar invite is updated.
+
+======================================================================
+7a. Cancel: group  →  Group thread
+----------------------------------------------------------------------
+Hi all,
+
+Chris has canceled the dinner on Saturday, October 24 at 8 PM. Sorry for the change of plans!
+
+— Butler, on behalf of Chris
+
+======================================================================
+7b. Cancel: private  →  Invited/Attending outside group
+----------------------------------------------------------------------
+Hi,
+
+Chris has canceled the dinner on Saturday, October 24 at 8 PM. Sorry for the change of plans!
+
+— Butler, on behalf of Chris
+
+======================================================================
+8. Calendar description  →  calendar event
+----------------------------------------------------------------------
+Hosted by Chris. Organized by Butler (arrialee7@gmail.com): to change your RSVP or ask a question, reply to Butler's email.
+
+Coming: 3 (August, Xhaka + 1 more)
+
+From Chris:
+- Street parking only
+
+======================================================================
+Signatures: to Host '— Butler', to others '— Butler, on behalf of Chris'

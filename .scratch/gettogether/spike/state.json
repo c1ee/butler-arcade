@@ -1,0 +1,201 @@
+{
+  "run": "rk7",
+  "t0": 1791265231,
+  "LC1": "on2o0bj9lhg36sqdj78m2tc00g",
+  "LC2": "ir7kei31qn6fasenu0drj0dui4",
+  "LC3": "vqrpb9ueo68bnet4sidbdnn6k4",
+  "LC4": "mm71tj50vkcah8jnll8ha90uq0",
+  "LC5": "r2b4qngh40ijcat3310ajs426s",
+  "M1": {
+    "id": "1a10fbabfcea5a2d",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbabfcea5a2d",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbabfcea5a2d"
+  },
+  "M2": {
+    "id": "1a10fbac0a07c0c4",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac0a07c0c4",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbac0a07c0c4"
+  },
+  "M3": {
+    "id": "1a10fbac21831f04",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac21831f04",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbac21831f04"
+  },
+  "M3r": {
+    "id": "1a10fbada9f5ba44",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac21831f04",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbada9f5ba44"
+  },
+  "h_rsvp_LC1": "Successfully set RSVP to 'accepted' for 'LC1 create host all rk7' starting at 2026-10-25T02:00:00Z. View event at https://www.google.com/calendar/event?eid=b24ybzBiajlsaGczNnNxZGo3OG0ydGMwMGcgY2FtcGluZ2NocmFAbQ",
+  "a_rsvp_LC4": "Successfully set RSVP to 'accepted' for 'LC4 description silent rk7' starting at 2026-10-25T02:00:00Z. View event at https://www.google.com/calendar/event?eid=bW03MXRqNTB2a2NhaDhqbmxsOGhhOTB1cTAgYXVndXN0Y2xlZTdAbQ",
+  "b_rsvp_LC4": "Successfully set RSVP to 'declined' for 'LC4 description silent rk7' starting at 2026-10-25T02:00:00Z. View event at https://www.google.com/calendar/event?eid=bW03MXRqNTB2a2NhaDhqbmxsOGhhOTB1cTAgeGhha2FvdXQzMkBt",
+  "a_reply_M1": {
+    "id": "1a10fbbed1c6db2e",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac1e3403f0",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbbed1c6db2e"
+  },
+  "a_reply_inv": {
+    "id": "1a10fbbf4956f11c",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fba980b31e66",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbbf4956f11c"
+  },
+  "h_replyall_M3": {
+    "id": "1a10fbbfb4877017",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac86b3a25c",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbbfb4877017"
+  },
+  "inbox": [
+    {
+      "bcc": "",
+      "cc": "",
+      "date": "Tuesday, October 06, 2026 at 05:42:21 UTC",
+      "header_message_id": "<calendar-6bcdbf9e-4a12-4543-b482-6961cc6c9ffd@google.com>",
+      "in_reply_to": "",
+      "label_ids": [
+        "UNREAD",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbc010799189",
+      "references": "",
+      "reply_to": "Sang Lee <xhakaout32@gmail.com>",
+      "sender": "Sang Lee <xhakaout32@gmail.com>",
+      "snippet": "LC4 description silent rk7 Sang Lee has declined this invitation. LC4 description v2: street parking only When Saturday Oct 24, 2026 \u22c5 7pm \u2013 10pm (Pacific Time - Los Angeles) Location Host&#39;s place",
+      "subject": "Declined: LC4 description silent rk7 @ Sat Oct 24, 2026 7pm - 10pm (PDT) (arrialee7@gmail.com)",
+      "thread_id": "1a10fbc010799189",
+      "to": "arrialee7@gmail.com"
+    },
+    {
+      "bcc": "",
+      "cc": "augustclee7@gmail.com, xhakaout32@gmail.com",
+      "date": "Tuesday, October 06, 2026 at 05:42:19 UTC",
+      "header_message_id": "<CAD-eDxkOf1KJFuAw3JVt4u58Xg-LFCWVCRfQRH=qKzQB+9fVNQ@mail.gmail.com>",
+      "in_reply_to": "<CAL3qAsTcLhtDKx86DZcE3NNx9gH_iWk4vaQ1XSV0S8PLLxxP4w@mail.gmail.com>",
+      "label_ids": [
+        "UNREAD",
+        "IMPORTANT",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbbfe9f735b3",
+      "references": "<CAL3qAsQmNpU3kJ7hNe7CHZzLEh-TaVp9693tveD+fP6JMxgwNA@mail.gmail.com> <CAL3qAsTcLhtDKx86DZcE3NNx9gH_iWk4vaQ1XSV0S8PLLxxP4w@mail.gmail.com>",
+      "reply_to": "",
+      "sender": "Camping Chra <campingchra@gmail.com>",
+      "snippet": "host reply-all On Tue, Oct 6, 2026 at 5:41 AM Arri Lee &lt;arrialee7@gmail.com&gt; wrote: Butler reply-all on its own message, adding B via cc. On Mon, Oct 5, 2026 at 10:41 PM Arri Lee &lt;arrialee7@",
+      "subject": "Re: LC-M3 rk7 group",
+      "thread_id": "1a10fbac21831f04",
+      "to": "arrialee7@gmail.com"
+    },
+    {
+      "bcc": "",
+      "cc": "",
+      "date": "Tuesday, October 06, 2026 at 05:42:20 UTC",
+      "header_message_id": "<calendar-0a5528a6-fcf3-48d7-8778-51caf6b04411@google.com>",
+      "in_reply_to": "",
+      "label_ids": [
+        "UNREAD",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbbfe4e1d6d8",
+      "references": "",
+      "reply_to": "Camping Chra <campingchra@gmail.com>",
+      "sender": "Camping Chra <campingchra@gmail.com>",
+      "snippet": "LC1 create host all rk7 Camping Chra has accepted this invitation. LC1 create host all description v1 When Saturday Oct 24, 2026 \u22c5 7pm \u2013 10pm (Pacific Time - Los Angeles) Location Host&#39;s place View",
+      "subject": "Accepted: LC1 create host all rk7 @ Sat Oct 24, 2026 7pm - 10pm (PDT) (arrialee7@gmail.com)",
+      "thread_id": "1a10fbbfe4e1d6d8",
+      "to": "arrialee7@gmail.com"
+    },
+    {
+      "bcc": "",
+      "cc": "",
+      "date": "Tuesday, October 06, 2026 at 05:42:20 UTC",
+      "header_message_id": "<calendar-675b315c-d6bb-4339-8487-fec96e892a5c@google.com>",
+      "in_reply_to": "",
+      "label_ids": [
+        "UNREAD",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbbfa516e0a5",
+      "references": "",
+      "reply_to": "August <augustclee7@gmail.com>",
+      "sender": "August <augustclee7@gmail.com>",
+      "snippet": "LC4 description silent rk7 August has accepted this invitation. LC4 description v2: street parking only When Saturday Oct 24, 2026 \u22c5 7pm \u2013 10pm (Pacific Time - Los Angeles) Location Host&#39;s place",
+      "subject": "Accepted: LC4 description silent rk7 @ Sat Oct 24, 2026 7pm - 10pm (PDT) (Arri Lee)",
+      "thread_id": "1a10fbbfa516e0a5",
+      "to": "Arri Lee <arrialee7@gmail.com>"
+    },
+    {
+      "bcc": "",
+      "cc": "",
+      "date": "Tuesday, October 06, 2026 at 05:42:18 UTC",
+      "header_message_id": "<CAAYxtddSEV8bqpmk5oGxSvqBpXC8myap2xZGDMGF0q2mLEEA3A@mail.gmail.com>",
+      "in_reply_to": "<calendar-3a66195a-a278-4ea5-9662-b7887a39dc25@google.com>",
+      "label_ids": [
+        "UNREAD",
+        "IMPORTANT",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbbf72efa045",
+      "references": "<calendar-3a66195a-a278-4ea5-9662-b7887a39dc25@google.com>",
+      "reply_to": "",
+      "sender": "August <augustclee7@gmail.com>",
+      "snippet": "what&#39;s parking like? On Mon, Oct 5, 2026 at 10:40 PM Arri Lee &lt;arrialee7@gmail.com&gt; wrote: LC4 description silent rk7 This event isn&#39;t in your calendar yet You haven&#39;t interacted with",
+      "subject": "Re: Invitation from an unknown sender: LC4 description silent rk7 @ Sat Oct 24, 2026 7pm - 10pm (PDT) (August)",
+      "thread_id": "1a10fbbf72efa045",
+      "to": "arrialee7@gmail.com"
+    },
+    {
+      "bcc": "",
+      "cc": "",
+      "date": "Tuesday, October 06, 2026 at 05:42:16 UTC",
+      "header_message_id": "<CAAYxtde1y29emnffV2m8kCjJWQyoZT1moQmC3DOvRFQXFo5XyQ@mail.gmail.com>",
+      "in_reply_to": "<CAL3qAsQAu5YsD2uBj99uh-eWcV214=7Lf58BBw=0g2zSWd9O+g@mail.gmail.com>",
+      "label_ids": [
+        "UNREAD",
+        "IMPORTANT",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "message_id": "1a10fbbf2150ddb4",
+      "references": "<CAL3qAsQAu5YsD2uBj99uh-eWcV214=7Lf58BBw=0g2zSWd9O+g@mail.gmail.com>",
+      "reply_to": "",
+      "sender": "August <augustclee7@gmail.com>",
+      "snippet": "yes I&#39;m in On Mon, Oct 5, 2026 at 10:40 PM Arri Lee &lt;arrialee7@gmail.com&gt; wrote: Hi A, private test from Butler.",
+      "subject": "Re: LC-M1 rk7 private to A",
+      "thread_id": "1a10fbabfcea5a2d",
+      "to": "arrialee7@gmail.com"
+    }
+  ],
+  "M3_butler2": {
+    "id": "1a10fbc4328856d5",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10fbac21831f04",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10fbc4328856d5"
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "t0": 1791262510,
+  "LC1 create host (all)": {
+    "event": {
+      "attendees": [
+        {
+          "email": "sychris.lee@gmail.com",
+          "responseStatus": "needsAction"
+        }
+      ],
+      "created": "2026-10-06T04:55:11.000Z",
+      "creator": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "description": "LC1 create host (all) description v1",
+      "end": {
+        "dateTime": "2026-10-24T22:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "etag": "\"3582525022893022\"",
+      "eventType": "default",
+      "htmlLink": "https://www.google.com/calendar/event?eid=dmwyN3NrcnFpbHBzNjMya3Jtdm5jYjYyczQgYXJyaWFsZWU3QG0",
+      "iCalUID": "vl27skrqilps632krmvncb62s4@google.com",
+      "id": "vl27skrqilps632krmvncb62s4",
+      "kind": "calendar#event",
+      "location": "Host's place",
+      "organizer": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "reminders": {
+        "useDefault": true
+      },
+      "sequence": 0,
+      "start": {
+        "dateTime": "2026-10-24T19:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "status": "confirmed",
+      "summary": "LC1 create host (all)",
+      "updated": "2026-10-06T04:55:11.446Z"
+    }
+  },
+  "LC2 create host (nobody)": {
+    "event": {
+      "attendees": [
+        {
+          "email": "sychris.lee@gmail.com",
+          "responseStatus": "needsAction"
+        }
+      ],
+      "created": "2026-10-06T04:55:12.000Z",
+      "creator": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "description": "LC2 create host (nobody) description v1",
+      "end": {
+        "dateTime": "2026-10-24T22:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "etag": "\"3582525024356574\"",
+      "eventType": "default",
+      "htmlLink": "https://www.google.com/calendar/event?eid=dTJzdXJpOG44Z3BlaHVhcnY2NnNnMGU1cWcgYXJyaWFsZWU3QG0",
+      "iCalUID": "u2suri8n8gpehuarv66sg0e5qg@google.com",
+      "id": "u2suri8n8gpehuarv66sg0e5qg",
+      "kind": "calendar#event",
+      "location": "Host's place",
+      "organizer": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "reminders": {
+        "useDefault": true
+      },
+      "sequence": 0,
+      "start": {
+        "dateTime": "2026-10-24T19:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "status": "confirmed",
+      "summary": "LC2 create host (nobody)",
+      "updated": "2026-10-06T04:55:12.178Z"
+    }
+  },
+  "LC3 add A": {
+    "event": {
+      "attendees": [
+        {
+          "email": "sychris.lee@gmail.com",
+          "responseStatus": "needsAction"
+        }
+      ],
+      "created": "2026-10-06T04:55:12.000Z",
+      "creator": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "description": "LC3 add A description v1",
+      "end": {
+        "dateTime": "2026-10-24T22:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "etag": "\"3582525025967806\"",
+      "eventType": "default",
+      "htmlLink": "https://www.google.com/calendar/event?eid=YWRkMmwxbWhqMTUwY3F0ajZhcWc0MWl2aWMgYXJyaWFsZWU3QG0",
+      "iCalUID": "add2l1mhj150cqtj6aqg41ivic@google.com",
+      "id": "add2l1mhj150cqtj6aqg41ivic",
+      "kind": "calendar#event",
+      "location": "Host's place",
+      "organizer": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "reminders": {
+        "useDefault": true
+      },
+      "sequence": 0,
+      "start": {
+        "dateTime": "2026-10-24T19:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "status": "confirmed",
+      "summary": "LC3 add A",
+      "updated": "2026-10-06T04:55:12.983Z"
+    }
+  },
+  "LC4 description silent": {
+    "event": {
+      "attendees": [
+        {
+          "email": "sychris.lee@gmail.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "xhakaout32@gmail.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "augustclee7@gmail.com",
+          "responseStatus": "needsAction"
+        }
+      ],
+      "created": "2026-10-06T04:55:13.000Z",
+      "creator": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "description": "LC4 description silent description v1",
+      "end": {
+        "dateTime": "2026-10-24T22:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "etag": "\"3582525027546910\"",
+      "eventType": "default",
+      "htmlLink": "https://www.google.com/calendar/event?eid=N25jdm01YzhxZGhtM3JnaHVoZjZ0c29oczggYXJyaWFsZWU3QG0",
+      "iCalUID": "7ncvm5c8qdhm3rghuhf6tsohs8@google.com",
+      "id": "7ncvm5c8qdhm3rghuhf6tsohs8",
+      "kind": "calendar#event",
+      "location": "Host's place",
+      "organizer": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "reminders": {
+        "useDefault": true
+      },
+      "sequence": 0,
+      "start": {
+        "dateTime": "2026-10-24T19:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "status": "confirmed",
+      "summary": "LC4 description silent",
+      "updated": "2026-10-06T04:55:13.773Z"
+    }
+  },
+  "LC5 remove B": {
+    "event": {
+      "attendees": [
+        {
+          "email": "sychris.lee@gmail.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "xhakaout32@gmail.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "augustclee7@gmail.com",
+          "responseStatus": "needsAction"
+        }
+      ],
+      "created": "2026-10-06T04:55:14.000Z",
+      "creator": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "description": "LC5 remove B description v1",
+      "end": {
+        "dateTime": "2026-10-24T22:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "etag": "\"3582525029404734\"",
+      "eventType": "default",
+      "htmlLink": "https://www.google.com/calendar/event?eid=M25pODUzcTBidDBia2pwNXRyM3FraGlxaDAgYXJyaWFsZWU3QG0",
+      "iCalUID": "3ni853q0bt0bkjp5tr3qkhiqh0@google.com",
+      "id": "3ni853q0bt0bkjp5tr3qkhiqh0",
+      "kind": "calendar#event",
+      "location": "Host's place",
+      "organizer": {
+        "email": "arrialee7@gmail.com",
+        "self": true
+      },
+      "reminders": {
+        "useDefault": true
+      },
+      "sequence": 0,
+      "start": {
+        "dateTime": "2026-10-24T19:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "status": "confirmed",
+      "summary": "LC5 remove B",
+      "updated": "2026-10-06T04:55:14.702Z"
+    }
+  },
+  "LC3 update": "Event with ID add2l1mhj150cqtj6aqg41ivic successfully updated at 2026-10-06T04:55:35.884Z. View updated event at https://www.google.com/calendar/event?eid=YWRkMmwxbWhqMTUwY3F0ajZhcWc0MWl2aWMgYXJyaWFsZWU3QG0",
+  "LC4 update": "Event with ID 7ncvm5c8qdhm3rghuhf6tsohs8 successfully updated at 2026-10-06T04:55:36.926Z. View updated event at https://www.google.com/calendar/event?eid=N25jdm01YzhxZGhtM3JnaHVoZjZ0c29oczggYXJyaWFsZWU3QG0",
+  "LC5 update": "Event with ID 3ni853q0bt0bkjp5tr3qkhiqh0 successfully updated at 2026-10-06T04:55:37.949Z. View updated event at https://www.google.com/calendar/event?eid=M25pODUzcTBidDBia2pwNXRyM3FraGlxaDAgYXJyaWFsZWU3QG0",
+  "ids": {
+    "e3": "add2l1mhj150cqtj6aqg41ivic",
+    "e4": "7ncvm5c8qdhm3rghuhf6tsohs8",
+    "e5": "3ni853q0bt0bkjp5tr3qkhiqh0"
+  },
+  "M1": {
+    "id": "1a10f913be63a16d",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10f913be63a16d",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10f913be63a16d"
+  },
+  "M2": {
+    "id": "1a10f913d18da06c",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10f913d18da06c",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10f913d18da06c"
+  },
+  "M3": {
+    "id": "1a10f913ec270b67",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10f913ec270b67",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10f913ec270b67"
+  },
+  "M3 reply": {
+    "id": "1a10f915646bd6a5",
+    "label_ids": [
+      "SENT"
+    ],
+    "thread_id": "1a10f913ec270b67",
+    "url": "https://mail.google.com/mail/u/0/#sent/1a10f915646bd6a5"
+  },
+  "M3 reply get": {
+    "bcc": "",
+    "body": "Butler reply-all on its own message, adding B via cc.\n\nOn Mon, Oct 5, 2026 at 9:55\u202fPM Arri Lee <arrialee7@gmail.com> wrote:\n\n> Group test: host + A. Butler will add B next.\n>",
+    "cc": "augustclee7@gmail.com, xhakaout32@gmail.com",
+    "date": "Tuesday, October 06, 2026 at 04:55:45 UTC",
+    "email_addresses": {
+      "bcc": [],
+      "cc": [
+        "augustclee7@gmail.com",
+        "xhakaout32@gmail.com"
+      ],
+      "from": "arrialee7@gmail.com",
+      "reply_to": [],
+      "to": [
+        "sychris.lee@gmail.com"
+      ]
+    },
+    "from_": "Arri Lee <arrialee7@gmail.com>",
+    "header_message_id": "<CAL3qAsSuAVjxgkJiwedstDJmJgP986Kw2piZ9vxASyBBdLqKBw@mail.gmail.com>",
+    "html_body": "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><div dir=\"ltr\"><p>Butler reply-all on its own message, adding B via cc.</p></div><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">On Mon, Oct 5, 2026 at 9:55\u202fPM Arri Lee &lt;<a href=\"mailto:arrialee7@gmail.com\">arrialee7@gmail.com</a>&gt; wrote:<br></div><blockquote class=\"gmail_quote\" style=\"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex\"><p>Group test: host + A. Butler will add B next.</p></blockquote></div></body></html>\n",
+    "id": "1a10f915646bd6a5",
+    "label_ids": [
+      "SENT"
+    ],
+    "references": "<CAL3qAsS+pcn8B4D6DaF5zrbn0Km1XKkvMOzJ+M6ozKi=asP0hQ@mail.gmail.com>",
+    "reply_to": "",
+    "snippet": "Butler reply-all on its own message, adding B via cc. On Mon, Oct 5, 2026 at 9:55 PM Arri Lee &lt;arrialee7@gmail.com&gt; wrote: Group test: host + A. Butler will add B next.",
+    "subject": "Re: LC-M3 group",
+    "thread_id": "1a10f913ec270b67",
+    "to": "sychris.lee@gmail.com"
+  }
+}
