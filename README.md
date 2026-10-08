@@ -30,7 +30,7 @@ Optional: rename Butler's Google account to "Butler" (Google Account → Persona
 ## Setup
 
 ```sh
-git clone <this repo's URL> gettogether && cd gettogether
+git clone https://github.com/c1ee/butler-arcade && cd butler-arcade
 uv sync
 cp .env.example .env   # then fill in ARCADE_API_KEY, ANTHROPIC_API_KEY, BUTLER_USER_ID, HOST_EMAIL
 uv run scripts/authorize.py
@@ -54,7 +54,7 @@ Butler logs every email it sees, where it routed it (Dinner, thread, sender's ro
 
 **Try it.** From the Host address, email Butler:
 
-> Hi Butler! I'm hosting dinner at my place Saturday 10/17 at 7pm: 412 Alder St, Oakland. Please invite guest1@example.com and guest2@example.com. Street parking only, let guests know.
+> Hi Butler! I'm hosting dinner at my place next Saturday at 7pm: 412 Alder St, Oakland. Please invite guest1@example.com and guest2@example.com. Street parking only, let guests know.
 
 Reply "looks good, send it" to the draft, then answer the invites from the Guest accounts. Reply to Butler from the Guests' inboxes; in the Group thread ("Everyone coming: …"), use **Reply all**: a plain Reply reaches only Butler and is answered privately.
 
