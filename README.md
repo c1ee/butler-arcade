@@ -2,7 +2,7 @@
 
 People stopped hosting dinner parties because the logistics are tedious: chasing RSVPs, collecting how many people each guest brings and what they can't eat, answering the same questions, keeping everyone updated. **Butler** is an organizer with its own Gmail and Google Calendar that does that work. The Host and the Guests only ever email it; nobody but Butler authorizes anything.
 
-- **Demo video:** TODO(link)
+- **Demo video:** https://www.youtube.com/watch?v=bafARB1hod8
 - **Decisions and tradeoffs:** [WRITEUP.md](WRITEUP.md)
 - **Feature proposal for Arcade (inbound triggers):** [WRITEUP.md → Feature proposal for Arcade](WRITEUP.md#feature-proposal-for-arcade)
 - **Architecture** (diagrams, data model, privacy model): [docs/architecture.md](docs/architecture.md)
